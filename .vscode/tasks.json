@@ -55,7 +55,7 @@
     {
       "label": "dev: postgres (docker)",
       "type": "shell",
-      "command": "docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17-alpine || docker start ssm-dev-postgres",
+      "command": "docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:18-alpine || docker start ssm-dev-postgres",
       "problemMatcher": []
     },
     {

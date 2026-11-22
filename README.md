@@ -34,7 +34,7 @@ docker compose up -d --build
 ### Local development
 
 ```bash
-docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17-alpine
+docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:18-alpine
 cd Monitorer
 dotnet run                    # http://localhost:5001, Swagger at /swagger (Development)
 ```
