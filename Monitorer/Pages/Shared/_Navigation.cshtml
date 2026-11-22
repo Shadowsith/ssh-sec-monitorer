@@ -1,0 +1,28 @@
+@functions {
+    private string Active(string prefix) =>
+        (ViewContext.RouteData.Values["page"] as string)?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true
+            ? "active" : "link-body-emphasis";
+}
+<nav class="offcanvas-lg offcanvas-start sidebar border-end bg-body" tabindex="-1" id="sidebar" aria-labelledby="sidebar-label">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="sidebar-label">Navigation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-2 pt-lg-3">
+        <ul class="nav nav-pills flex-column gap-1">
+            <li class="nav-item"><a class="nav-link @Active("/Index")" asp-page="/Index"><i class="bi bi-speedometer2 me-2"></i>Übersicht</a></li>
+            <li class="nav-item"><a class="nav-link @Active("/Agents/")" asp-page="/Agents/Index"><i class="bi bi-hdd-network me-2"></i>Agents</a></li>
+            <li class="nav-item"><a class="nav-link @Active("/Docker/")" asp-page="/Docker/Index"><i class="bi bi-boxes me-2"></i>Docker</a></li>
+            <li class="nav-item"><a class="nav-link @Active("/LiveChecks/")" asp-page="/LiveChecks/Index"><i class="bi bi-activity me-2"></i>Live-Checks</a></li>
+        </ul>
+        @if (User.IsAdmin())
+        {
+            <div class="text-body-secondary small text-uppercase fw-semibold px-3 mt-4 mb-1">Verwaltung</div>
+            <ul class="nav nav-pills flex-column gap-1">
+                <li class="nav-item"><a class="nav-link @Active("/Alerts/")" asp-page="/Alerts/Index"><i class="bi bi-bell me-2"></i>Alarme</a></li>
+                <li class="nav-item"><a class="nav-link @Active("/SshCredentials/")" asp-page="/SshCredentials/Index"><i class="bi bi-key me-2"></i>SSH-Zugänge</a></li>
+                <li class="nav-item"><a class="nav-link @Active("/Users/")" asp-page="/Users/Index"><i class="bi bi-people me-2"></i>Benutzer</a></li>
+            </ul>
+        }
+    </div>
+</nav>

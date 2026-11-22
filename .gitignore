@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+release/
+*.user
+.vs/
+
+# Monitorer runtime
+Monitorer/keys/
+docker-compose/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+Agent/data/
+
+# OS / editors
+.DS_Store
+Thumbs.db

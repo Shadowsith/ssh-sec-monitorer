@@ -1,0 +1,48 @@
+@page
+@model Monitorer.Pages.SshCredentials.IndexModel
+@{
+    ViewData["Title"] = "SSH-Zugänge";
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">SSH-Zugänge</h1>
+    <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>SSH-Zugang hinzufügen</a>
+</div>
+<p class="text-body-secondary">
+    Mit diesen Benutzern verbindet sich der Monitorer per SSH (SFTP) zu den Agent-Hosts. Der Benutzer benötigt auf dem Host
+    nur Leserechte auf die <code>monitoring.json</code>. Schlüssel und Passwörter werden verschlüsselt gespeichert und nie wieder angezeigt.
+</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr><th>Name</th><th>SSH-Benutzer</th><th>Authentifizierung</th><th class="text-end">Agents</th><th>Geändert</th><th></th></tr>
+            </thead>
+            <tbody>
+            @foreach (var c in Model.Credentials)
+            {
+                <tr>
+                    <td class="fw-semibold">@c.Name</td>
+                    <td><code>@c.UserName</code></td>
+                    <td>
+                        @if (c.AuthType == SshAuthTypes.Key)
+                        {
+                            <span class="badge text-bg-info"><i class="bi bi-key me-1"></i>Schlüssel</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary"><i class="bi bi-asterisk me-1"></i>Passwort</span>
+                        }
+                    </td>
+                    <td class="text-end">@c.UsedByAgents</td>
+                    <td>@c.UpdatedAt.ToBerlinString()</td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-secondary" asp-page="Edit" asp-route-id="@c.Id" title="Bearbeiten"><i class="bi bi-pencil"></i></a></td>
+                </tr>
+            }
+            @if (Model.Credentials.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-body-secondary py-4">Noch keine SSH-Zugänge vorhanden.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

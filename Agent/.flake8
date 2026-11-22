@@ -1,0 +1,6 @@
+[flake8]
+# flake8 defaults (max line length 79); black-compatible
+max-line-length = 79
+# E203 is ignored by black users; the code passes without it too
+extend-ignore = E203
+exclude = .venv,__pycache__,data

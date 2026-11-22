@@ -1,0 +1,75 @@
+@page "{id:int?}"
+@model Monitorer.Pages.LiveChecks.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Live-Check hinzufügen" : "Live-Check bearbeiten";
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
+</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage</div>
+}
+<form method="post" class="card shadow-sm" autocomplete="off">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.Name" class="form-label">Name</label>
+                <input asp-for="Input.Name" class="form-control" required maxlength="100" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.CheckType" class="form-label">Typ</label>
+                <select asp-for="Input.CheckType" class="form-select" data-toggle-group="type">
+                    <option value="@LiveCheckTypes.Http">HTTP(S)</option>
+                    <option value="@LiveCheckTypes.WebSocket">WebSocket (WS/WSS)</option>
+                    <option value="@LiveCheckTypes.Mqtt">MQTT(S)</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label asp-for="Input.Target" class="form-label">Ziel-URL</label>
+                <input asp-for="Input.Target" class="form-control font-monospace" required
+                       placeholder="https://dienst.intern/health · wss://dienst.intern/ws · mqtts://broker.intern:8883" />
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label asp-for="Input.IntervalSeconds" class="form-label">Intervall (s)</label>
+                <input asp-for="Input.IntervalSeconds" type="number" min="5" max="86400" class="form-control" required />
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label asp-for="Input.TimeoutSeconds" class="form-label">Timeout (s)</label>
+                <input asp-for="Input.TimeoutSeconds" type="number" min="1" max="120" class="form-control" required />
+            </div>
+            <div class="col-sm-6 col-md-3" data-show-for="type" data-show-value="@LiveCheckTypes.Http">
+                <label asp-for="Input.ExpectedStatusCode" class="form-label">Erwarteter Statuscode</label>
+                <input asp-for="Input.ExpectedStatusCode" type="number" min="100" max="599" class="form-control" placeholder="leer = &lt; 400" />
+            </div>
+            <div class="col-12 col-md-6" data-show-for="type" data-show-value="@LiveCheckTypes.Mqtt">
+                <label asp-for="Input.MqttUserName" class="form-label">MQTT-Benutzer (optional)</label>
+                <input asp-for="Input.MqttUserName" class="form-control" />
+            </div>
+            <div class="col-12 col-md-6" data-show-for="type" data-show-value="@LiveCheckTypes.Mqtt">
+                <label asp-for="Input.MqttPassword" class="form-label">MQTT-Passwort</label>
+                <input asp-for="Input.MqttPassword" type="password" class="form-control" autocomplete="new-password"
+                       placeholder="@(Model.Input.HasMqttPassword ? "Gespeichert – leer lassen zum Behalten" : "")" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-4">
+                <div class="form-check form-switch">
+                    <input asp-for="Input.Enabled" class="form-check-input" role="switch" />
+                    <label asp-for="Input.Enabled" class="form-check-label">Aktiv</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="Input.IgnoreTlsErrors" class="form-check-input" role="switch" />
+                    <label asp-for="Input.IgnoreTlsErrors" class="form-check-label">TLS-Zertifikatsfehler ignorieren (nur für interne Test-Zertifikate)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+        @if (!Model.IsNew)
+        {
+            <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
+                    data-confirm="Live-Check wirklich löschen?"><i class="bi bi-trash me-1"></i>Löschen</button>
+        }
+    </div>
+</form>

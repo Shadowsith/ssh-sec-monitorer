@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Monitorer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "monitorer: build",
+      "program": "${workspaceFolder}/Monitorer/bin/Debug/net10.0/Monitorer.dll",
+      "cwd": "${workspaceFolder}/Monitorer",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5001"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      }
+    },
+    {
+      "name": "Run Configurator",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "configurator: build",
+      "program": "${workspaceFolder}/Configurator/bin/Debug/net10.0/SshSecMonitorer.Configurator.dll",
+      "cwd": "${workspaceFolder}/Configurator"
+    },
+    {
+      "name": "Run Agent (Python)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "ssm_agent",
+      "cwd": "${workspaceFolder}/Agent",
+      "args": ["--config", "config.yml", "--log-level", "DEBUG"]
+    }
+  ]
+}

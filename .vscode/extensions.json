@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "avaloniateam.vscode-avalonia",
+    "ms-python.python",
+    "ms-azuretools.vscode-docker"
+  ]
+}

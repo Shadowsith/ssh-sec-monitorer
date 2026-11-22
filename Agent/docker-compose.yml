@@ -1,0 +1,50 @@
+# SshSecMonitorer agent - runs on every monitored Ubuntu / Debian VM.
+#
+# Security model:
+#  - no published ports; the agent only talks to the socket proxy on an internal network
+#  - the Docker socket is only reachable through docker-socket-proxy with POST=0 (read-only API)
+#  - host /proc and / are mounted read-only; the only writable path is ./data (monitoring.json)
+#  - the Monitorer fetches monitoring.json via SFTP (SSH) from AGENT_DATA_DIR
+
+name: sshsecmonitorer-agent
+
+services:
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest   # pin a version tag for production
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1   # list / inspect / stats / logs
+      INFO: 1
+      VERSION: 1
+      PING: 1
+      POST: 0         # no write operations at all
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - agent-internal
+
+  agent:
+    build: .
+    image: sshsecmonitorer/agent:latest
+    restart: unless-stopped
+    depends_on:
+      - docker-proxy
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./config.yml:/config/config.yml:ro
+      - /proc:/host/proc:ro
+      - /:/hostfs:ro,rslave
+      - ${AGENT_DATA_DIR:-/opt/sshsecmonitorer/agent}:/data
+    networks:
+      - agent-internal
+
+networks:
+  agent-internal:
+    internal: true    # no route to the outside world

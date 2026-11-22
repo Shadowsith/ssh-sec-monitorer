@@ -1,0 +1,80 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "monitorer: build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/Monitorer/Monitorer.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "monitorer: watch",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "run",
+        "--project",
+        "${workspaceFolder}/Monitorer/Monitorer.csproj"
+      ],
+      "isBackground": true,
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "monitorer: publish",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/Monitorer/Monitorer.csproj",
+        "-c",
+        "Release",
+        "-o",
+        "${workspaceFolder}/Monitorer/release"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "configurator: build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/Configurator/Configurator.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dev: postgres (docker)",
+      "type": "shell",
+      "command": "docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17-alpine || docker start ssm-dev-postgres",
+      "problemMatcher": []
+    },
+    {
+      "label": "agent: run once (local test)",
+      "type": "shell",
+      "command": "cd Agent && python -m ssm_agent --config config.yml --once --log-level DEBUG",
+      "problemMatcher": []
+    },
+    {
+      "label": "agent: lint (flake8)",
+      "type": "shell",
+      "command": "cd Agent && flake8 ssm_agent",
+      "problemMatcher": []
+    },
+    {
+      "label": "agent: format (black)",
+      "type": "shell",
+      "command": "cd Agent && black -l 79 ssm_agent",
+      "problemMatcher": []
+    }
+  ]
+}

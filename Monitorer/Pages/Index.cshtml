@@ -1,0 +1,59 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Übersicht";
+}
+<div data-auto-refresh="60">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">Übersicht</h1>
+        <span class="text-body-secondary small"><i class="bi bi-arrow-repeat me-1"></i>Aktualisiert sich jede Minute</span>
+    </div>
+
+    <div class="d-flex flex-wrap gap-3 mb-4">
+        <partial name="_SummaryTile" model='("OK", Model.CountByStatus(MonitorStatus.Ok, MonitorStatus.Up), "success", "bi-check-circle")' />
+        <partial name="_SummaryTile" model='("Warnung", Model.CountByStatus(MonitorStatus.Warning), "warning", "bi-exclamation-triangle")' />
+        <partial name="_SummaryTile" model='("Kritisch", Model.CountByStatus(MonitorStatus.Critical), "danger", "bi-x-octagon")' />
+        <partial name="_SummaryTile" model='("Nicht erreichbar", Model.CountByStatus(MonitorStatus.Unreachable, MonitorStatus.Down), "danger", "bi-plug")' />
+        <partial name="_SummaryTile" model='("Aktive Alarme", Model.ActiveAlerts, Model.ActiveAlerts > 0 ? "danger" : "secondary", "bi-bell")' />
+    </div>
+
+    @if (Model.Overview.Agents.Count == 0 && Model.Overview.LiveChecks.Count == 0)
+    {
+        <div class="alert alert-info">
+            Noch keine Agents oder Live-Checks angelegt.
+            @if (User.IsAdmin())
+            {
+                <a asp-page="/Agents/Edit" class="alert-link">Agent hinzufügen</a>
+            }
+        </div>
+    }
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-4">
+            <partial name="_ChartCard" model='("Status", "chart-status", "Agents und Live-Checks nach Status", "/Agents/Index")' />
+        </div>
+        <div class="col-12 col-xl-8">
+            <partial name="_ChartCard" model='("Auslastung je VM", "chart-usage", "CPU, RAM und vollste Festplatte – sortiert nach höchster Auslastung", "/Agents/Index")' />
+        </div>
+        <div class="col-12 col-xl-6">
+            <partial name="_ChartCard" model='("CPU-Verlauf", "chart-cpu-history", "CPU in % je VM aus der monitoring.json", "/Agents/Index")' />
+        </div>
+        <div class="col-12 col-xl-6">
+            <partial name="_ChartCard" model='("RAM-Verlauf", "chart-memory-history", "RAM in % je VM aus der monitoring.json", "/Agents/Index")' />
+        </div>
+        <div class="col-12 col-xl-6">
+            <partial name="_ChartCard" model='("Container je VM", "chart-containers", "laufend, mit Problem, gestoppt, nicht mehr vorhanden", "/Docker/Index")' />
+        </div>
+        <div class="col-12 col-xl-6">
+            <partial name="_ChartCard" model='("Antwortzeiten Live-Checks", "chart-live-checks", "letzte Antwortzeit in ms, ausgefallene rot", "/LiveChecks/Index")' />
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="overview-data">@Html.Raw(Model.ChartsJson)</script>
+
+@section Scripts {
+    <script src="~/lib/echarts/echarts.min.js" asp-append-version="true"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+    <script src="~/js/overview.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,145 @@
+# SshSecMonitorer - Monitorer + PostgreSQL
+# First start:  ./setup.sh   (creates .env with random secrets)   then   docker compose up -d --build
+# With a local agent for this host:   docker compose --profile local-agent up -d --build
+#   then in the UI: Agents -> Agent hinzufuegen -> Verbindung "Lokal", Ordner "local"
+
+name: sshsecmonitorer
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - db            # internal only - not reachable from outside
+
+  monitorer:
+    build:
+      context: ../Monitorer
+      dockerfile: Dockerfile
+    image: sshsecmonitorer/monitorer:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      local-agent:
+        condition: service_started
+        required: false    # only started with --profile local-agent
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      TZ: Europe/Berlin
+      DbConfig__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      DbConfig__MasterConnectionString: "Host=postgres;Port=5432;Database=postgres;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES:-480}
+      Auth__SecureCookie: ${SECURE_COOKIE:-true}
+      Setup__AdminUserName: ${ADMIN_USERNAME:-}
+      Setup__AdminPassword: ${ADMIN_PASSWORD:-}
+      Swagger__Enabled: ${SWAGGER_ENABLED:-false}
+      # --- SMTP warning mails ---
+      Mail__Enabled: ${MAIL_ENABLED:-false}
+      Mail__Host: ${MAIL_HOST:-}
+      Mail__Port: ${MAIL_PORT:-25}
+      Mail__Security: ${MAIL_SECURITY:-Auto}
+      Mail__UseAuth: ${MAIL_USE_AUTH:-false}
+      Mail__UserName: ${MAIL_USERNAME:-}
+      Mail__Password: ${MAIL_PASSWORD:-}
+      Mail__From: ${MAIL_FROM:-monitorer@example.local}
+      Mail__Recipients: ${MAIL_RECIPIENTS:-}
+      # --- optional LDAP / AD ---
+      Ldap__Enabled: ${LDAP_ENABLED:-false}
+      Ldap__Host: ${LDAP_HOST:-}
+      Ldap__Port: ${LDAP_PORT:-636}
+      Ldap__UseSsl: ${LDAP_USE_SSL:-true}
+      Ldap__UseStartTls: ${LDAP_USE_STARTTLS:-false}
+      Ldap__TrustedCertificatesDirectory: ${LDAP_CERT_DIR:-}
+      Ldap__BindDn: ${LDAP_BIND_DN:-}
+      Ldap__BindPassword: ${LDAP_BIND_PASSWORD:-}
+      Ldap__SearchBase: ${LDAP_SEARCH_BASE:-}
+      Ldap__UserFilter: ${LDAP_USER_FILTER:-(&(objectClass=user)(sAMAccountName={0}))}
+      Ldap__UserGroupDn: ${LDAP_USER_GROUP_DN:-}
+      Ldap__AdminGroupDn: ${LDAP_ADMIN_GROUP_DN:-}
+      # --- monitoring defaults ---
+      Monitoring__DefaultPollIntervalSeconds: ${POLL_INTERVAL_SECONDS:-60}
+      Monitoring__MaxParallelPolls: ${MAX_PARALLEL_POLLS:-8}
+      Monitoring__MaxPollsPerTick: ${MAX_POLLS_PER_TICK:-0}
+      Monitoring__StaleAfterSeconds: ${STALE_AFTER_SECONDS:-300}
+      Monitoring__MissingContainerStatus: ${MISSING_CONTAINER_STATUS:-Warning}
+      Monitoring__KnownContainerIgnore: ${KNOWN_CONTAINER_IGNORE:-}
+      Monitoring__LocalAgentRoot: /app/agents
+    volumes:
+      - dpkeys:/app/keys   # Data Protection keys - losing them makes stored SSH secrets unreadable
+      # local agent: directory (never the file - the agent replaces it atomically), read-only
+      - local-agent-data:/app/agents/local:ro
+    ports:
+      - "${MONITORER_BIND:-127.0.0.1}:${MONITORER_PORT:-8080}:8080"
+    networks:
+      - db
+      - egress        # outbound SSH to the agents and live checks
+
+  # --- optional: agent for the Monitorer host itself (profile local-agent) ---
+  # Same hardening as Agent/docker-compose.yml; writes into the named volume local-agent-data,
+  # which the Monitorer mounts read-only - no SSH needed for its own host.
+  local-docker-proxy:
+    profiles: ["local-agent"]
+    image: tecnativa/docker-socket-proxy:latest   # pin a version tag for production
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      INFO: 1
+      VERSION: 1
+      PING: 1
+      POST: 0         # no write operations at all
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      local-agent:
+        aliases:
+          - docker-proxy   # matches docker.base_url in the agent config
+
+  local-agent:
+    profiles: ["local-agent"]
+    build:
+      context: ../Agent
+      dockerfile: Dockerfile
+    image: sshsecmonitorer/agent:latest
+    restart: unless-stopped
+    depends_on:
+      - local-docker-proxy
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./local-agent/config.yml:/config/config.yml:ro
+      - /proc:/host/proc:ro
+      - /:/hostfs:ro,rslave
+      - local-agent-data:/data
+    networks:
+      - local-agent
+
+volumes:
+  pgdata:
+  dpkeys:
+  local-agent-data:   # written by local-agent (rw), read by monitorer (ro)
+
+networks:
+  db:
+    internal: true
+  egress:
+  local-agent:
+    internal: true    # agent <-> socket proxy only, no route outside

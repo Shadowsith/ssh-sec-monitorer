@@ -1,0 +1,27 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Configurator.App"
+             RequestedThemeVariant="Default">
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="TextBlock.label">
+            <Setter Property="Width" Value="230" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.65" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Expander">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="IsExpanded" Value="True" />
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="FormatString" Value="0" />
+            <Setter Property="Increment" Value="1" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+    </Application.Styles>
+</Application>

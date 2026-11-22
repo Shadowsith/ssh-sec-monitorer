@@ -1,0 +1,13 @@
+@model (string Title, string ChartId, string Description, string LinkPage)
+<div class="card shadow-sm h-100">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center gap-2">
+        <div>
+            <div class="fw-semibold">@Model.Title</div>
+            <div class="small text-body-secondary">@Model.Description</div>
+        </div>
+        <a asp-page="@Model.LinkPage" class="small text-nowrap">Details <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="card-body">
+        <div id="@Model.ChartId" class="chart-box" role="img" aria-label="@Model.Title"></div>
+    </div>
+</div>

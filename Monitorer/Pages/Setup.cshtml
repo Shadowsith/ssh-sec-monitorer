@@ -1,0 +1,35 @@
+@page
+@model SetupModel
+@{
+    ViewData["Title"] = "Ersteinrichtung";
+}
+<div class="card shadow-sm card-narrow w-100">
+    <div class="card-body p-4 p-md-5">
+        <h1 class="h4"><i class="bi bi-gear me-2"></i>Ersteinrichtung</h1>
+        <p class="text-body-secondary">Es ist noch kein Benutzer vorhanden. Bitte den ersten Admin-Benutzer anlegen.</p>
+        @if (Model.ErrorMessage is not null)
+        {
+            <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        }
+        <form method="post" class="d-flex flex-column gap-3">
+            <div>
+                <label asp-for="Input.UserName" class="form-label">Benutzername</label>
+                <input asp-for="Input.UserName" class="form-control" autocomplete="username" required />
+            </div>
+            <div>
+                <label asp-for="Input.DisplayName" class="form-label">Anzeigename</label>
+                <input asp-for="Input.DisplayName" class="form-control" />
+            </div>
+            <div>
+                <label asp-for="Input.Password" class="form-label">Passwort</label>
+                <input asp-for="Input.Password" type="password" class="form-control" autocomplete="new-password" minlength="@Model.MinPasswordLength" required />
+                <div class="form-text">Mindestens @Model.MinPasswordLength Zeichen.</div>
+            </div>
+            <div>
+                <label asp-for="Input.PasswordRepeat" class="form-label">Passwort wiederholen</label>
+                <input asp-for="Input.PasswordRepeat" type="password" class="form-control" autocomplete="new-password" required />
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Admin anlegen</button>
+        </form>
+    </div>
+</div>

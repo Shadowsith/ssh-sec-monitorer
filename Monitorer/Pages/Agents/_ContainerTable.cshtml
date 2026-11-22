@@ -1,0 +1,119 @@
+@model DockerSectionDto
+@{
+    // ports column only when the agent reports ports (docker.ports.enabled in config.yml)
+    var showPorts = Model.Containers.Any(c => c.Ports is not null);
+    var showIo = Model.Containers.Any(c => c.BlockIo is not null);
+    var columns = 8 + (showPorts ? 1 : 0) + (showIo ? 1 : 0);
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold"><i class="bi bi-boxes me-2"></i>Container
+            <span class="text-body-secondary fw-normal">(@Model.Containers.Count(c => c.IsRunning) / @Model.Containers.Count laufen)</span></span>
+        @if (Model.Engine?.GetValueOrDefault("version") is string engineVersion)
+        {
+            <span class="small text-body-secondary">Docker @engineVersion</span>
+        }
+    </div>
+    @if (!Model.Available)
+    {
+        <div class="alert alert-warning m-3 mb-0">Docker nicht erreichbar: @Model.Error</div>
+    }
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Image</th>
+                <th>Status</th>
+                @if (showPorts)
+                {
+                    <th>Ports</th>
+                }
+                <th class="text-end">CPU</th>
+                <th class="text-end">RAM</th>
+                @if (showIo)
+                {
+                    <th>Disk I/O</th>
+                }
+                <th class="text-end">Restarts</th>
+                <th class="text-end">Logs (Fehler / Warn.)</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var c in Model.Containers.OrderBy(c => c.Name))
+            {
+                var stateClass = c.StateCssClass;
+                var collapseId = $"logs-{c.Id[..Math.Min(12, c.Id.Length)]}";
+                <tr>
+                    <td class="fw-semibold">@c.Name</td>
+                    <td class="small text-truncate cell-wide" title="@c.Image"><code>@c.Image</code></td>
+                    <td><span class="badge text-bg-@stateClass">@c.StateText</span></td>
+                    @if (showPorts)
+                    {
+                        <td>
+                            @if (c.Ports is { Count: > 0 } ports)
+                            {
+                                <partial name="_PortList" model="ports" />
+                            }
+                            else
+                            {
+                                <span class="text-body-secondary small">–</span>
+                            }
+                        </td>
+                    }
+                    <td class="text-end">@c.CpuPercent.ToPercentString()</td>
+                    <td class="text-end" title="@c.Memory?.Usage.ToByteString() / @c.Memory?.Limit.ToByteString()">@c.Memory?.Percent.ToPercentString()</td>
+                    @if (showIo)
+                    {
+                        <td class="small">
+                            @if (c.IsRunning && c.BlockIo is { } io)
+                            {
+                                <partial name="_BlockIo" model="io" />
+                            }
+                            else
+                            {
+                                <span class="text-body-secondary">–</span>
+                            }
+                        </td>
+                    }
+                    <td class="text-end">@(c.RestartCount?.ToString() ?? "–")</td>
+                    <td class="text-end">
+                        @if (c.Logs is { } logs)
+                        {
+                            <span class="badge text-bg-@(logs.ErrorCount > 0 ? "danger" : "light")">@logs.ErrorCount</span>
+                            <span class="badge text-bg-@(logs.WarningCount > 0 ? "warning" : "light")">@logs.WarningCount</span>
+                        }
+                        else
+                        {
+                            <span>–</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (c.Logs?.Tail.Count > 0)
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId" title="Log anzeigen">
+                                <i class="bi bi-journal-text"></i>
+                            </button>
+                        }
+                    </td>
+                </tr>
+                if (c.Logs?.Tail.Count > 0)
+                {
+                    <tr class="collapse" id="@collapseId">
+                        <td colspan="@columns" class="bg-body-tertiary">
+                            <div class="small text-body-secondary mb-1">Letzte @c.Logs.Tail.Count Zeilen (Fenster @(c.Logs.WindowSeconds) s)</div>
+                            <pre class="log-tail mb-0">@string.Join("\n", c.Logs.Tail)</pre>
+                        </td>
+                    </tr>
+                }
+            }
+            @if (Model.Containers.Count == 0)
+            {
+                <tr><td colspan="@columns" class="text-center text-body-secondary py-4">Keine Container</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,57 @@
+/* SshSecMonitorer – small additions on top of Bootstrap 5 (layout is flexbox based) */
+
+.sidebar {
+    --sidebar-width: 15rem;
+}
+
+@media (min-width: 992px) {
+    .sidebar {
+        width: var(--sidebar-width);
+        flex: 0 0 var(--sidebar-width);
+        min-height: calc(100vh - 56px);
+    }
+}
+
+.min-w-0 { min-width: 0; }
+
+.card-narrow { max-width: 28rem; }
+
+.summary-tile { min-width: 11rem; }
+
+.agent-card {
+    border-width: 0 0 0 4px !important;
+    transition: transform .1s ease-in-out, box-shadow .1s ease-in-out;
+}
+.agent-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bs-box-shadow) !important;
+}
+
+.progress-thin { height: .5rem; }
+
+.cell-wide { max-width: 22rem; }
+
+.chart-box { position: relative; width: 100%; height: 280px; }
+
+.log-tail {
+    max-height: 20rem;
+    overflow: auto;
+    font-size: .78rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: .5rem .75rem;
+}
+
+.setup-script { max-height: 28rem; white-space: pre; word-break: normal; }
+
+/* containers that were seen once and are gone now */
+.container-missing {
+    opacity: .6;
+    filter: grayscale(1);
+    border-style: dashed !important;
+    border-width: 1px 1px 1px 4px !important;
+}
+.container-missing:hover { opacity: .85; }

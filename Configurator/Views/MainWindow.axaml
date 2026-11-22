@@ -1,0 +1,147 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Configurator.ViewModels"
+        xmlns:db="using:Configurator.Data.Db"
+        x:Class="Configurator.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="SshSecMonitorer – Agent-Konfigurator"
+        Width="1440" Height="900" MinWidth="1100" MinHeight="640"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+        <!-- toolbar -->
+        <Border DockPanel.Dock="Top" Padding="10,8" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Neu" Command="{Binding NewCommand}" />
+                <Button Content="Speichern" Command="{Binding SaveCommand}" Classes="accent" />
+                <Button Content="Duplizieren" Command="{Binding DuplicateCommand}" IsEnabled="{Binding IsSaved}" />
+                <Button Content="Löschen" Command="{Binding DeleteCommand}" IsEnabled="{Binding IsSaved}" />
+                <Border Width="1" Margin="6,2" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+                <Button Content="YAML kopieren" Click="OnCopyYaml" />
+                <Button Content="Als config.yml speichern…" Click="OnExportYaml" />
+                <Button Content="YAML aus Zwischenablage importieren" Click="OnImportYaml" />
+            </StackPanel>
+        </Border>
+
+        <!-- status bar -->
+        <Border DockPanel.Dock="Bottom" Padding="10,6" BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding StatusMessage}" />
+                <TextBlock Text="{Binding ValidationMessage}" Foreground="OrangeRed" TextWrapping="Wrap"
+                           IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="260,5,*,5,480">
+            <!-- saved configurations -->
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="Gespeicherte Konfigurationen" Margin="10,10,10,6" FontWeight="SemiBold" />
+                <ListBox ItemsSource="{Binding Configs}" SelectedItem="{Binding SelectedConfig}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="db:AgentConfigDb">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Description}" Classes="hint" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+            <!-- editor -->
+            <ScrollViewer Grid.Column="2">
+                <StackPanel Margin="16" Spacing="12">
+                    <Expander Header="Konfiguration">
+                        <StackPanel Spacing="8">
+                            <DockPanel><TextBlock Classes="label" Text="Name der Konfiguration" /><TextBox Text="{Binding ConfigName}" Watermark="leer = Agent-Name" /></DockPanel>
+                            <DockPanel><TextBlock Classes="label" Text="Beschreibung" /><TextBox Text="{Binding ConfigDescription}" /></DockPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Agent">
+                        <StackPanel Spacing="8">
+                            <DockPanel><TextBlock Classes="label" Text="Agent-Name" /><TextBox Text="{Binding Settings.Agent.Name}" /></DockPanel>
+                            <DockPanel><TextBlock Classes="label" Text="Ausgabedatei (im Container)" /><TextBox Text="{Binding Settings.Agent.OutputFile}" /></DockPanel>
+                            <DockPanel><TextBlock Classes="label" Text="Dateirechte (oktal)" /><TextBox Text="{Binding Settings.Agent.OutputFileMode}" Width="180" HorizontalAlignment="Left" /></DockPanel>
+                            <DockPanel><TextBlock Classes="label" Text="Schreibintervall (s)" /><NumericUpDown Value="{Binding Settings.Agent.WriteInterval}" Minimum="1" Maximum="86400" /></DockPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Host (CPU, RAM, Festplatten, Netzwerk)">
+                        <StackPanel Spacing="8">
+                            <CheckBox Content="Host-Überwachung aktiv" IsChecked="{Binding Settings.Host.Enabled}" />
+                            <StackPanel Spacing="8" IsEnabled="{Binding Settings.Host.Enabled}">
+                                <DockPanel><TextBlock Classes="label" Text="Leseintervall (s)" /><NumericUpDown Value="{Binding Settings.Host.Interval}" Minimum="1" Maximum="86400" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Verlauf behalten (s)" /><NumericUpDown Value="{Binding Settings.Host.HistoryRetention}" Minimum="0" Maximum="604800" Increment="300" /></DockPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                    <CheckBox Content="CPU" IsChecked="{Binding Settings.Host.Cpu}" />
+                                    <CheckBox Content="RAM / Swap" IsChecked="{Binding Settings.Host.Memory}" />
+                                    <CheckBox Content="Load" IsChecked="{Binding Settings.Host.Load}" />
+                                    <CheckBox Content="Festplatten" IsChecked="{Binding Settings.Host.Disks.Enabled}" />
+                                    <CheckBox Content="Netzwerk" IsChecked="{Binding Settings.Host.Network.Enabled}" />
+                                </StackPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Mountpoints" /><TextBox Text="{Binding DiskMounts}" Watermark="z. B. /, /var/lib/docker – leer = automatisch" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Interfaces" /><TextBox Text="{Binding NetworkInterfaces}" Watermark="z. B. eth0, ens18 – leer = alle außer ausgeschlossene" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Interfaces ausschließen" /><TextBox Text="{Binding NetworkExclude}" Watermark="Muster, z. B. lo, veth*, docker*" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="/proc-Pfad (Container)" /><TextBox Text="{Binding Settings.Host.ProcPath}" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Root-FS-Pfad (Container)" /><TextBox Text="{Binding Settings.Host.RootfsPath}" /></DockPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Docker (Container, Stats, Logs)">
+                        <StackPanel Spacing="8">
+                            <CheckBox Content="Docker-Überwachung aktiv" IsChecked="{Binding Settings.Docker.Enabled}" />
+                            <StackPanel Spacing="8" IsEnabled="{Binding Settings.Docker.Enabled}">
+                                <DockPanel><TextBlock Classes="label" Text="Docker-API (Socket-Proxy)" /><TextBox Text="{Binding Settings.Docker.BaseUrl}" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Leseintervall (s)" /><NumericUpDown Value="{Binding Settings.Docker.Interval}" Minimum="1" Maximum="86400" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="API-Timeout (s)" /><NumericUpDown Value="{Binding Settings.Docker.Timeout}" Minimum="1" Maximum="300" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Parallele Stats-Abfragen" /><NumericUpDown Value="{Binding Settings.Docker.MaxWorkers}" Minimum="1" Maximum="32" /></DockPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                    <CheckBox Content="Stats (CPU / RAM / Netz)" IsChecked="{Binding Settings.Docker.Stats}" />
+                                    <CheckBox Content="Verlauf pro Container" IsChecked="{Binding Settings.Docker.History}" />
+                                </StackPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Verlauf behalten (s)" /><NumericUpDown Value="{Binding Settings.Docker.HistoryRetention}" Minimum="0" Maximum="604800" Increment="300" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Nur Container (Muster)" /><TextBox Text="{Binding DockerInclude}" Watermark="leer = alle, z. B. web-*, db" /></DockPanel>
+                                <DockPanel><TextBlock Classes="label" Text="Container ausschließen" /><TextBox Text="{Binding DockerExclude}" Watermark="z. B. *-test" /></DockPanel>
+
+                                <TextBlock Text="Ports" FontWeight="SemiBold" Margin="0,8,0,0" />
+                                <CheckBox Content="Öffentliche Ports anzeigen (nur nach außen veröffentlichte Host-Ports)" IsChecked="{Binding Settings.Docker.Ports.Enabled}" />
+                                <CheckBox Content="Auch nur lokal gebundene Ports (127.0.0.1 / ::1)" IsChecked="{Binding Settings.Docker.Ports.IncludeLocalhost}"
+                                          IsEnabled="{Binding Settings.Docker.Ports.Enabled}" Margin="24,0,0,0" />
+
+                                <TextBlock Text="Disk I/O" FontWeight="SemiBold" Margin="0,8,0,0" />
+                                <CheckBox Content="Festplatten-I/O pro Container (aktuelle Lese-/Schreibrate)" IsChecked="{Binding Settings.Docker.BlockIo.Enabled}" />
+                                <CheckBox Content="Zusätzlich Gesamtwerte seit Containerstart" IsChecked="{Binding Settings.Docker.BlockIo.Totals}"
+                                          IsEnabled="{Binding Settings.Docker.BlockIo.Enabled}" Margin="24,0,0,0" />
+
+                                <TextBlock Text="Logs" FontWeight="SemiBold" Margin="0,8,0,0" />
+                                <CheckBox Content="Logs auswerten" IsChecked="{Binding Settings.Docker.Logs.Enabled}" />
+                                <StackPanel Spacing="8" IsEnabled="{Binding Settings.Docker.Logs.Enabled}">
+                                    <DockPanel><TextBlock Classes="label" Text="Leseintervall (s)" /><NumericUpDown Value="{Binding Settings.Docker.Logs.Interval}" Minimum="1" Maximum="86400" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Zeitfenster für Zählung (s)" /><NumericUpDown Value="{Binding Settings.Docker.Logs.Window}" Minimum="1" Maximum="86400" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Letzte Zeilen in JSON" /><NumericUpDown Value="{Binding Settings.Docker.Logs.TailLines}" Minimum="0" Maximum="500" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Max. gelesene Zeilen" /><NumericUpDown Value="{Binding Settings.Docker.Logs.MaxScanLines}" Minimum="1" Maximum="100000" Increment="100" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Max. Zeilenlänge" /><NumericUpDown Value="{Binding Settings.Docker.Logs.MaxLineLength}" Minimum="20" Maximum="10000" Increment="50" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Fehler-Muster (Regex)" /><TextBox Text="{Binding Settings.Docker.Logs.ErrorPattern}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" /></DockPanel>
+                                    <DockPanel><TextBlock Classes="label" Text="Warnungs-Muster (Regex)" /><TextBox Text="{Binding Settings.Docker.Logs.WarningPattern}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" /></DockPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+            <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
+
+            <!-- YAML preview -->
+            <DockPanel Grid.Column="4" Margin="0,0,10,10">
+                <TextBlock DockPanel.Dock="Top" Text="config.yml – Vorschau" Margin="0,10,0,6" FontWeight="SemiBold" />
+                <TextBox Text="{Binding YamlPreview}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                         FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12" />
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

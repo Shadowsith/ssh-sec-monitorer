@@ -1,0 +1,99 @@
+@page
+@model Monitorer.Pages.Docker.IndexModel
+@{
+    ViewData["Title"] = "Docker";
+    ViewData["ForgetPage"] = "/Docker/Index";
+}
+<div data-auto-refresh="30">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-0">Docker</h1>
+            <div class="small text-body-secondary">@Model.Hosts.Count VMs · @Model.RunningTotal von @Model.ContainerTotal Containern laufen@(Model.MissingTotal > 0 ? $" · {Model.MissingTotal} nicht mehr vorhanden" : "")</div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="form-check form-switch me-2 mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="only-running" data-container-filter data-remember="ssm-docker-only-running" />
+                <label class="form-check-label" for="only-running">Nur laufende Container</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="show" data-target="#docker-hosts">Alle aufklappen</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="hide" data-target="#docker-hosts">Alle zuklappen</button>
+        </div>
+    </div>
+
+    @if (Model.Hosts.Count == 0)
+    {
+        <div class="alert alert-info">Noch keine Agents angelegt.</div>
+    }
+
+    <div class="accordion shadow-sm" id="docker-hosts" data-remember-collapse="ssm-docker-open">
+        @foreach (var host in Model.Hosts)
+        {
+            var collapseId = $"docker-host-{host.Agent.Id}";
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button @(host.HasProblems ? "" : "collapsed")" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#@collapseId" aria-expanded="@(host.HasProblems ? "true" : "false")" aria-controls="@collapseId">
+                        <span class="d-flex flex-wrap align-items-center gap-2 gap-md-3 w-100 me-3">
+                            <span class="fw-semibold">@host.Agent.Name</span>
+                            <span class="small text-body-secondary">@(host.Agent.IsLocal() ? "lokal" : host.Agent.Host)</span>
+                            <partial name="_StatusBadge" model="host.Status" />
+                            <span class="ms-md-auto d-flex flex-wrap gap-3 small text-body-secondary">
+                                <span><i class="bi bi-box me-1"></i>@(host.Docker is null ? "keine Daten" : $"{host.RunningCount} / {host.TotalCount} laufen")</span>
+                                @if (host.MissingContainers.Count > 0)
+                                {
+                                    <span class="text-body-emphasis"><i class="bi bi-dash-circle-dotted me-1"></i>@host.MissingContainers.Count fehlen</span>
+                                }
+                                @if (host.Docker?.Engine?.GetValueOrDefault("version") is string engineVersion)
+                                {
+                                    <span>Docker @engineVersion</span>
+                                }
+                                <span class="@(host.ErrorCount > 0 ? "text-danger fw-semibold" : "")">@host.ErrorCount Fehler · @host.WarningCount Warn.</span>
+                            </span>
+                        </span>
+                    </button>
+                </h2>
+                <div id="@collapseId" class="accordion-collapse collapse @(host.HasProblems ? "show" : "")">
+                    <div class="accordion-body bg-body-tertiary">
+                        @if (host.Snapshot?.Status == MonitorStatus.Unreachable)
+                        {
+                            <div class="alert alert-warning py-2">
+                                Agent nicht erreichbar (@((host.Snapshot.FetchedAt).ToAgeString()) zuletzt abgerufen) – angezeigt wird der letzte bekannte Stand.
+                            </div>
+                        }
+                        @if (host.Docker is { Available: false } docker)
+                        {
+                            <div class="alert alert-warning py-2">Docker nicht erreichbar: @docker.Error</div>
+                        }
+                        @if ((host.Docker is null || host.Docker.Containers.Count == 0) && host.MissingContainers.Count == 0)
+                        {
+                            <div class="small text-body-secondary">@(host.Agent.Enabled ? "Keine Container-Daten vorhanden." : "Agent deaktiviert – keine Daten.")</div>
+                        }
+                        else
+                        {
+                            <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 row-cols-xxl-4 g-3">
+                                @foreach (var container in (host.Docker?.Containers ?? []).OrderBy(c => c.IsRunning ? 0 : 1).ThenBy(c => c.Name))
+                                {
+                                    <partial name="_ContainerCard" model="container" />
+                                }
+                                @foreach (var missing in host.MissingContainers)
+                                {
+                                    <partial name="_MissingContainerCard" model="missing" />
+                                }
+                            </div>
+                            if (host.MissingContainers.Count > 1 && User.IsAdmin())
+                            {
+                                <form method="post" asp-page-handler="ForgetMissing" asp-route-agentId="@host.Agent.Id" class="mt-3">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                            data-confirm="Alle @host.MissingContainers.Count nicht mehr vorhandenen Container von @host.Agent.Name entfernen?">
+                                        <i class="bi bi-trash me-1"></i>Alle nicht mehr vorhandenen entfernen
+                                    </button>
+                                </form>
+                            }
+                            <div class="small text-body-secondary mt-3 d-none" data-container-empty>Keine laufenden Container.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

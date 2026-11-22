@@ -1,0 +1,23 @@
+@model ContainerBlockIoDto
+@if (!Model.Available)
+{
+    <div class="small text-body-secondary mb-2" title="Der Host meldet für diesen Container kein Block-I/O (cgroup io-Controller)">Disk I/O: keine Daten</div>
+}
+else
+{
+    <div class="small mb-2">
+        <div class="d-flex justify-content-between gap-2">
+            <span class="text-body-secondary"><i class="bi bi-device-hdd me-1"></i>Disk I/O</span>
+            <span class="text-nowrap">
+                <span title="Lesen"><i class="bi bi-arrow-down-short"></i>@Model.ReadBps.ToRateString()</span>
+                <span class="ms-1" title="Schreiben"><i class="bi bi-arrow-up-short"></i>@Model.WriteBps.ToRateString()</span>
+            </span>
+        </div>
+        @if (Model.HasTotals)
+        {
+            <div class="text-body-secondary text-end" title="Gesamt seit Containerstart">
+                gesamt: @Model.ReadTotal.ToByteString() gelesen · @Model.WriteTotal.ToByteString() geschrieben
+            </div>
+        }
+    </div>
+}

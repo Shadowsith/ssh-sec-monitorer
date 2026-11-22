@@ -1,0 +1,160 @@
+@page "{id:int?}"
+@model Monitorer.Pages.SshCredentials.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "SSH-Zugang hinzufügen" : "SSH-Zugang bearbeiten";
+    var firstTarget = Model.TestTargets.FirstOrDefault(a => a.SshCredentialId == Model.Id);
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
+</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage</div>
+}
+<form method="post" class="card shadow-sm" autocomplete="off" id="credential-form">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.Name" class="form-label">Name</label>
+                <input asp-for="Input.Name" class="form-control" required maxlength="100" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.UserName" class="form-label">SSH-Benutzer</label>
+                <input asp-for="Input.UserName" class="form-control font-monospace" required maxlength="100" />
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Authentifizierung</label>
+                <div class="btn-group" role="group" aria-label="Authentifizierung">
+                    <input type="radio" class="btn-check" asp-for="Input.AuthType" value="@SshAuthTypes.Key" id="auth-key" data-toggle-group="auth" />
+                    <label class="btn btn-outline-primary" for="auth-key"><i class="bi bi-key me-1"></i>Schlüssel</label>
+                    <input type="radio" class="btn-check" asp-for="Input.AuthType" value="@SshAuthTypes.Password" id="auth-password" data-toggle-group="auth" />
+                    <label class="btn btn-outline-primary" for="auth-password"><i class="bi bi-asterisk me-1"></i>Passwort</label>
+                </div>
+            </div>
+            <div class="col-12" data-show-for="auth" data-show-value="@SshAuthTypes.Key">
+                <label asp-for="Input.PrivateKey" class="form-label">Privater Schlüssel (OpenSSH / PEM)</label>
+                <textarea asp-for="Input.PrivateKey" class="form-control font-monospace" rows="8" spellcheck="false"
+                          placeholder="@(Model.Input.HasPrivateKey ? "Gespeichert – leer lassen, um den vorhandenen Schlüssel zu behalten" : "-----BEGIN OPENSSH PRIVATE KEY-----")"></textarea>
+                <div class="form-text">Empfehlung: eigenes Ed25519-Schlüsselpaar nur für den Monitorer, auf dem Host mit eingeschränktem Benutzer.</div>
+                <label asp-for="Input.Passphrase" class="form-label mt-3">Passphrase (optional)</label>
+                <input asp-for="Input.Passphrase" type="password" class="form-control" autocomplete="new-password" />
+            </div>
+            <div class="col-md-6" data-show-for="auth" data-show-value="@SshAuthTypes.Password">
+                <label asp-for="Input.Password" class="form-label">Passwort</label>
+                <input asp-for="Input.Password" type="password" class="form-control" autocomplete="new-password"
+                       placeholder="@(Model.Input.HasPassword ? "Gespeichert – leer lassen zum Behalten" : "")" />
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+        @if (!Model.IsNew)
+        {
+            <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
+                    data-confirm="SSH-Zugang wirklich löschen?"><i class="bi bi-trash me-1"></i>Löschen</button>
+        }
+    </div>
+</form>
+
+<!-- Connection test: uses the values currently in the form (also unsaved ones) via POST api/ssh-credentials/test -->
+<div class="card shadow-sm mt-3" data-ssh-test data-form="#credential-form" data-credential-id="@(Model.IsNew ? "" : Model.Id.ToString())">
+    <div class="card-header bg-transparent fw-semibold"><i class="bi bi-plug me-2"></i>Verbindung testen</div>
+    <div class="card-body">
+        <p class="small text-body-secondary">
+            Prüft mit den Angaben oben (auch ungespeicherten) nacheinander: Host erreichbar, Host-Key, Anmeldung, SFTP und – wenn angegeben –
+            ob die <code>monitoring.json</code> lesbar und aktuell ist. Es wird nichts gespeichert. Leere Schlüssel-/Passwortfelder verwenden die gespeicherten Werte.
+        </p>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="test-host" class="form-label">Host / IP</label>
+                <input id="test-host" class="form-control" list="test-targets" value="@firstTarget?.Host" placeholder="vm-web-01.intern" data-test-field="host" />
+                <datalist id="test-targets">
+                    @foreach (var a in Model.TestTargets)
+                    {
+                        <option value="@a.Host" data-port="@a.Port" data-path="@a.RemotePath">@a.Name</option>
+                    }
+                </datalist>
+            </div>
+            <div class="col-md-2">
+                <label for="test-port" class="form-label">Port</label>
+                <input id="test-port" type="number" min="1" max="65535" class="form-control" value="@(firstTarget?.Port ?? 22)" data-test-field="port" />
+            </div>
+            <div class="col-md-5">
+                <label for="test-path" class="form-label">Pfad zur monitoring.json (optional)</label>
+                <input id="test-path" class="form-control font-monospace" value="@(firstTarget?.RemotePath ?? "/opt/sshsecmonitorer/agent/monitoring.json")" data-test-field="path" />
+            </div>
+            <div class="col-12">
+                <button type="button" class="btn btn-outline-primary" data-test-run>
+                    <span class="spinner-border spinner-border-sm me-1 d-none" aria-hidden="true" data-test-spinner></span>
+                    <i class="bi bi-plug me-1" data-test-icon></i>Verbindung testen
+                </button>
+            </div>
+        </div>
+        <div class="mt-3" data-test-result aria-live="polite"></div>
+    </div>
+</div>
+
+<!-- Setup script for the VM: read-only SFTP user (placeholders can be filled right here, all client-side) -->
+<div class="card shadow-sm mt-3" data-setup-script data-form="#credential-form"
+     data-credential-id="@(Model.IsNew ? "" : Model.Id.ToString())" data-has-key="@(Model.Input.HasPrivateKey ? "true" : "false")">
+    <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold"><i class="bi bi-person-lock me-2"></i>Nutzer auf VM anlegen</span>
+        <span class="d-flex flex-wrap align-items-center gap-2">
+            <label for="script-variant" class="visually-hidden">System der VM</label>
+            <select id="script-variant" class="form-select form-select-sm w-auto" data-script-variant>
+                @foreach (var (variant, _) in Model.SetupScripts)
+                {
+                    <option value="@variant.Key" data-file="@variant.FileName">@variant.Label</option>
+                }
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-copy-target="#setup-script"><i class="bi bi-clipboard me-1"></i>Kopieren</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-script-download><i class="bi bi-download me-1"></i><span data-script-filename>setup-sftp-user-ubuntu.sh</span></button>
+        </span>
+    </div>
+    <div class="card-body">
+        <p class="small mb-3">
+            Legt auf einer VM (Ubuntu ab 22.04, Arch Linux / Manjaro oder Raspberry Pi OS ab 11 – oben auswählen) den Benutzer <code>sshsecmonitorer</code> an. Er darf sich nur mit dem Schlüssel des Monitorers anmelden
+            und ausschließlich <strong>lesend per SFTP</strong> auf den Agent-Ordner zugreifen (chroot, keine Shell, kein TTY, keine Weiterleitungen,
+            optional nur von der IP des Monitorers). Die Platzhalter lassen sich hier ausfüllen und übernehmen – danach nur noch
+            kopieren bzw. herunterladen und auf der VM mit <code>sudo bash</code> ausführen.
+        </p>
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <label for="script-dir" class="form-label">Agent-Datenordner auf der VM</label>
+                <input id="script-dir" class="form-control font-monospace" value="/opt/sshsecmonitorer/agent" data-script-field="dir" />
+                <div class="form-text"><code>AGENT_DATA_DIR</code> des Agents – dort liegt die <code>monitoring.json</code>.</div>
+            </div>
+            <div class="col-lg-5">
+                <label for="script-key" class="form-label">Öffentlicher Schlüssel des Monitorers</label>
+                <div class="input-group">
+                    <input id="script-key" class="form-control font-monospace" placeholder="ssh-ed25519 AAAA… sshsecmonitorer" data-script-field="key" />
+                    <button type="button" class="btn btn-outline-secondary" data-script-derive title="Aus dem privaten Schlüssel oben ableiten">
+                        <i class="bi bi-magic me-1"></i>Ableiten
+                    </button>
+                </div>
+                <div class="form-text">Wird aus dem eingegebenen bzw. gespeicherten privaten Schlüssel berechnet – nur der öffentliche Teil.</div>
+            </div>
+            <div class="col-lg-3">
+                <label for="script-ip" class="form-label">IP des Monitorers (optional)</label>
+                <input id="script-ip" class="form-control font-monospace" placeholder="z. B. 10.10.10.5" data-script-field="ip" />
+                <div class="form-text">Leer = Anmeldung von überall. Mehrere mit Komma.</div>
+            </div>
+            <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                <button type="button" class="btn btn-primary" data-script-apply><i class="bi bi-check2-square me-1"></i>Übernehmen</button>
+                <button type="button" class="btn btn-outline-secondary" data-script-reset>Platzhalter zurücksetzen</button>
+                <span class="small" data-script-status aria-live="polite"></span>
+            </div>
+        </div>
+        <pre class="log-tail mb-0 mt-3 setup-script" id="setup-script">@(Model.SetupScripts.FirstOrDefault().Script)</pre>
+        @foreach (var (variant, script) in Model.SetupScripts)
+        {
+            <pre hidden data-setup-template="@variant.Key">@script</pre>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/ssh-test.js" asp-append-version="true"></script>
+    <script src="~/js/setup-script.js" asp-append-version="true"></script>
+}

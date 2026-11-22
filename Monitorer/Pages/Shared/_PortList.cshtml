@@ -1,0 +1,17 @@
+@model List<ContainerPortDto>
+@if (Model.Count == 0)
+{
+    <div class="small text-body-secondary mb-2"><i class="bi bi-shield-check me-1"></i>keine öffentlichen Ports</div>
+}
+else
+{
+    <div class="d-flex flex-wrap gap-1 mb-2" aria-label="Veröffentlichte Ports">
+        @foreach (var port in Model)
+        {
+            <span class="badge @(port.LocalhostOnly ? "text-bg-light border" : "text-bg-primary")"
+                  title="@(port.LocalhostOnly ? "nur lokal gebunden" : "von außen erreichbar")">
+                <i class="bi @(port.LocalhostOnly ? "bi-house" : "bi-globe2") me-1"></i>@port.DisplayText
+            </span>
+        }
+    </div>
+}

@@ -1,0 +1,15 @@
+@model string
+@{
+    var (text, icon) = Model switch
+    {
+        MonitorStatus.Ok => ("OK", "bi-check-circle"),
+        MonitorStatus.Up => ("Erreichbar", "bi-check-circle"),
+        MonitorStatus.Warning => ("Warnung", "bi-exclamation-triangle"),
+        MonitorStatus.Critical => ("Kritisch", "bi-x-octagon"),
+        MonitorStatus.Unreachable => ("Nicht erreichbar", "bi-plug"),
+        MonitorStatus.Down => ("Down", "bi-x-circle"),
+        "Disabled" => ("Deaktiviert", "bi-pause-circle"),
+        _ => ("Unbekannt", "bi-question-circle")
+    };
+}
+<span class="badge text-bg-@MonitorStatus.CssClass(Model)"><i class="bi @icon me-1"></i>@text</span>

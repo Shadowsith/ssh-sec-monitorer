@@ -1,0 +1,51 @@
+@model List<LiveCheckDto>
+@{
+    var showActions = ViewData["ShowActions"] as bool? == true;
+}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Typ</th>
+                <th>Ziel</th>
+                <th>Status</th>
+                <th class="text-end">Antwort</th>
+                <th>Geprüft</th>
+                <th>Meldung</th>
+                @if (showActions)
+                {
+                    <th class="text-end">Aktionen</th>
+                }
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var check in Model)
+            {
+                <tr>
+                    <td class="fw-semibold">@check.Name</td>
+                    <td><span class="badge text-bg-light border">@check.CheckType</span></td>
+                    <td class="text-truncate cell-wide" title="@check.Target"><code>@check.Target</code></td>
+                    <td><partial name="_StatusBadge" model='check.Enabled ? check.LastStatus : "Disabled"' /></td>
+                    <td class="text-end">@(check.LastResponseMs is null ? "–" : $"{check.LastResponseMs} ms")</td>
+                    <td title="@check.LastCheckedAt.ToBerlinString("dd.MM.yyyy HH:mm:ss")">@check.LastCheckedAt.ToAgeString()</td>
+                    <td class="small text-body-secondary text-truncate cell-wide" title="@check.LastMessage">@check.LastMessage</td>
+                    @if (showActions)
+                    {
+                        <td class="text-end text-nowrap">
+                            <form method="post" asp-page="/LiveChecks/Index" asp-page-handler="Run" asp-route-id="@check.Id" class="d-inline">
+                                <button class="btn btn-sm btn-outline-primary" title="Jetzt prüfen"><i class="bi bi-play"></i></button>
+                            </form>
+                            @if (User.IsAdmin())
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" asp-page="/LiveChecks/Edit" asp-route-id="@check.Id" title="Bearbeiten"><i class="bi bi-pencil"></i></a>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,24 @@
+@page
+@model Monitorer.Pages.LiveChecks.IndexModel
+@{
+    ViewData["Title"] = "Live-Checks";
+    ViewData["ShowActions"] = true;
+}
+<div data-auto-refresh="30">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">Live-Checks</h1>
+        @if (User.IsAdmin())
+        {
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>Live-Check hinzufügen</a>
+        }
+    </div>
+    <p class="text-body-secondary">Direkte Erreichbarkeitsprüfung von Webdiensten durch den Monitorer: HTTP(S), WebSocket (WS/WSS) und MQTT(S).</p>
+    @if (Model.Checks.Count == 0)
+    {
+        <div class="alert alert-info">Noch keine Live-Checks angelegt.</div>
+    }
+    else
+    {
+        <partial name="_LiveCheckTable" model="Model.Checks" view-data="ViewData" />
+    }
+</div>

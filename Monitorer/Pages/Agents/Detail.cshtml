@@ -1,0 +1,117 @@
+@page "{id:int}"
+@model Monitorer.Pages.Agents.DetailModel
+@{
+    var agent = Model.Detail.Agent;
+    var snap = Model.Detail.Snapshot;
+    var monitoring = Model.Detail.Monitoring;
+    ViewData["Title"] = agent.Name;
+    ViewData["ForgetPage"] = "/Agents/Detail";
+    ViewData["AgentId"] = agent.Id;
+}
+<div data-auto-refresh="60">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-1 d-flex align-items-center gap-2">
+                @agent.Name <partial name="_StatusBadge" model='agent.Enabled ? snap?.Status ?? MonitorStatus.Unknown : "Disabled"' />
+            </h1>
+            <div class="text-body-secondary small d-flex flex-wrap gap-3">
+                @if (agent.IsLocal())
+                {
+                    <span><span class="badge text-bg-info me-1">lokal</span><code>@agent.LocalDir/monitoring.json</code></span>
+                }
+                else
+                {
+                    <span><i class="bi bi-hdd me-1"></i><code>@agent.Host:@agent.Port</code></span>
+                    <span><i class="bi bi-key me-1"></i>@agent.SshCredentialName</span>
+                }
+                <span title="Letzter erfolgreicher Abruf"><i class="bi bi-cloud-download me-1"></i>@((snap?.FetchedAt).ToBerlinString("dd.MM.yyyy HH:mm:ss"))</span>
+                <span title="Vom Agent erzeugt"><i class="bi bi-clock me-1"></i>@((snap?.GeneratedAt).ToAgeString())</span>
+                @if (Model.NextPollAt is { } next)
+                {
+                    <span title="Nächster geplanter Abruf (alle @agent.PollIntervalSeconds s, über das Intervall verteilt)">
+                        <i class="bi bi-hourglass-split me-1"></i>nächster Abruf @(next <= DateTime.UtcNow.AddSeconds(1) ? "jetzt" : next.ToBerlinString("HH:mm:ss"))
+                    </span>
+                }
+                @if (monitoring?.Agent?.Version is string version)
+                {
+                    <span><i class="bi bi-tag me-1"></i>Agent @("v" + version)</span>
+                }
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" asp-page-handler="Poll" asp-route-id="@agent.Id" class="m-0">
+                <button class="btn btn-primary"><i class="bi bi-arrow-clockwise me-1"></i>Jetzt abrufen</button>
+            </form>
+            @if (User.IsAdmin())
+            {
+                <a class="btn btn-outline-secondary" asp-page="Edit" asp-route-id="@agent.Id"><i class="bi bi-pencil me-1"></i>Bearbeiten</a>
+            }
+        </div>
+    </div>
+
+    @if (snap?.Status == MonitorStatus.Unreachable && snap.Message is not null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-plug me-2"></i><strong>Abruf fehlgeschlagen:</strong> @snap.Message</div>
+    }
+    @if (Model.Detail.Findings.Count > 0)
+    {
+        <div class="alert alert-warning">
+            <ul class="mb-0 ps-3">
+                @foreach (var finding in Model.Detail.Findings)
+                {
+                    <li>@finding</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (monitoring is null)
+    {
+        <div class="alert alert-info">Für diesen Agent liegen noch keine Daten vor.</div>
+    }
+    else
+    {
+        if (monitoring.Host?.Current is { } host)
+        {
+            <partial name="_HostPanel" model="host" />
+        }
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-transparent fw-semibold">CPU / RAM (%)</div>
+                    <div class="card-body"><div id="chart-cpu-mem" class="chart-box" role="img" aria-label="CPU und RAM Verlauf"></div></div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-transparent fw-semibold">Netzwerk (Bytes/s)</div>
+                    <div class="card-body"><div id="chart-net" class="chart-box" role="img" aria-label="Netzwerk Verlauf"></div></div>
+                </div>
+            </div>
+        </div>
+
+        if (monitoring.Docker is { } docker)
+        {
+            <partial name="_ContainerTable" model="docker" />
+        }
+        if (Model.Detail.MissingContainers.Count > 0)
+        {
+            <h2 class="h6 mt-4 mb-3 text-body-secondary"><i class="bi bi-dash-circle-dotted me-2"></i>Nicht mehr vorhandene Container</h2>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 row-cols-xxl-4 g-3">
+                @foreach (var missing in Model.Detail.MissingContainers)
+                {
+                    <partial name="_MissingContainerCard" model="missing" />
+                }
+            </div>
+        }
+    }
+</div>
+
+<script type="application/json" id="history-data">@Html.Raw(Model.HistoryJson)</script>
+
+@section Scripts {
+    <script src="~/lib/echarts/echarts.min.js" asp-append-version="true"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+    <script src="~/js/agent-detail.js" asp-append-version="true"></script>
+}

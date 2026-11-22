@@ -1,0 +1,107 @@
+@page "{id:int?}"
+@model Monitorer.Pages.Agents.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Agent hinzufügen" : "Agent bearbeiten";
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
+</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage</div>
+}
+@if (Model.Credentials.Count == 0)
+{
+    <div class="alert alert-warning" data-show-for="Ssh">
+        Es ist noch kein SSH-Zugang angelegt. <a asp-page="/SshCredentials/Edit" class="alert-link">Zuerst einen SSH-Zugang anlegen</a>
+        – oder einen <strong>lokalen</strong> Agent auf dem Monitorer-Host anlegen.
+    </div>
+}
+<form method="post" class="card shadow-sm" data-connection-form>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.Name" class="form-label">Name</label>
+                <input asp-for="Input.Name" class="form-control" required maxlength="100" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.Description" class="form-label">Beschreibung</label>
+                <input asp-for="Input.Description" class="form-control" maxlength="500" />
+            </div>
+            <div class="col-12">
+                <span class="form-label d-block">Verbindung</span>
+                <div class="btn-group" role="group" aria-label="Verbindungstyp">
+                    <input type="radio" class="btn-check" name="Input.ConnectionType" id="conn-ssh" value="@AgentConnectionTypes.Ssh"
+                           autocomplete="off" data-connection-type checked="@(Model.IsSsh)" />
+                    <label class="btn btn-outline-primary" for="conn-ssh"><i class="bi bi-hdd-network me-1"></i>Entfernte VM (SFTP)</label>
+                    <input type="radio" class="btn-check" name="Input.ConnectionType" id="conn-local" value="@AgentConnectionTypes.Local"
+                           autocomplete="off" data-connection-type checked="@(!Model.IsSsh)" />
+                    <label class="btn btn-outline-primary" for="conn-local"><i class="bi bi-house-door me-1"></i>Lokal (Monitorer-Host)</label>
+                </div>
+            </div>
+
+            <!-- Local agent: only the folder name below Monitoring:LocalAgentRoot -->
+            <div class="col-md-6" data-show-for="Local">
+                <label asp-for="Input.LocalDir" class="form-label">Ordner</label>
+                <input asp-for="Input.LocalDir" class="form-control font-monospace" required pattern="[a-z0-9][a-z0-9_\-]{0,62}"
+                       maxlength="63" placeholder="local" />
+                <div class="form-text">
+                    Gelesen wird <code>@Model.LocalAgentRoot/&lt;ordner&gt;/monitoring.json</code> (Volume read-only gemountet).
+                    Mit <code>docker compose --profile local-agent up -d</code> ist der Ordner <code>local</code>.
+                </div>
+            </div>
+
+            <!-- Remote VM via SFTP -->
+            <div class="col-md-8" data-show-for="Ssh">
+                <label asp-for="Input.Host" class="form-label">Host / IP</label>
+                <input asp-for="Input.Host" class="form-control" required placeholder="vm-web-01.intern" />
+            </div>
+            <div class="col-md-4" data-show-for="Ssh">
+                <label asp-for="Input.Port" class="form-label">SSH-Port</label>
+                <input asp-for="Input.Port" type="number" min="1" max="65535" class="form-control" required />
+            </div>
+            <div class="col-md-6" data-show-for="Ssh">
+                <label asp-for="Input.SshCredentialId" class="form-label">SSH-Zugang</label>
+                <select asp-for="Input.SshCredentialId" asp-items="Model.Credentials" class="form-select" required>
+                    <option value="">– bitte wählen –</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.PollIntervalSeconds" class="form-label">Abfrageintervall (Sekunden)</label>
+                <input asp-for="Input.PollIntervalSeconds" type="number" min="10" max="86400" class="form-control" required />
+            </div>
+            <div class="col-12" data-show-for="Ssh">
+                <label asp-for="Input.RemotePath" class="form-label">Pfad zur monitoring.json auf dem Host</label>
+                <input asp-for="Input.RemotePath" class="form-control font-monospace" required />
+                <div class="form-text">Abruf per SFTP (gleicher SSH-Port). Entspricht <code>AGENT_DATA_DIR</code> des Agents + <code>/monitoring.json</code>.
+                    Ist der SSH-Benutzer per <code>ChrootDirectory</code> eingesperrt, den Pfad relativ zum Chroot angeben, z. B. <code>/agent/monitoring.json</code>.</div>
+            </div>
+            <div class="col-12" data-show-for="Ssh">
+                <label asp-for="Input.HostKeyFingerprint" class="form-label">SSH Host-Key (SHA256-Fingerprint)</label>
+                <input asp-for="Input.HostKeyFingerprint" class="form-control font-monospace" placeholder="leer = beim ersten Verbinden übernehmen" />
+                <div class="form-text">Wird beim ersten Abruf automatisch gesetzt (Trust on first use). Danach wird jeder abweichende Host-Key abgelehnt.</div>
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input asp-for="Input.Enabled" class="form-check-input" role="switch" />
+                    <label asp-for="Input.Enabled" class="form-check-label">Aktiv (wird zyklisch abgefragt)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+        @if (!Model.IsNew)
+        {
+            <button type="submit" class="btn btn-outline-warning" asp-page-handler="ResetHostKey" data-show-for="Ssh" formnovalidate
+                    data-confirm="Host-Key wirklich zurücksetzen?"><i class="bi bi-key me-1"></i>Host-Key zurücksetzen</button>
+            <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
+                    data-confirm="Agent wirklich löschen?"><i class="bi bi-trash me-1"></i>Löschen</button>
+        }
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/js/agent-edit.js" asp-append-version="true"></script>
+}

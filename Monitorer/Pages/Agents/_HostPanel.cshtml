@@ -1,0 +1,61 @@
+@model HostCurrentDto
+@inject Microsoft.Extensions.Options.IOptions<MonitoringSettings> Options
+@{
+    var s = Options.Value;
+}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-cpu me-2"></i>System</div>
+            <div class="card-body">
+                <partial name="_UsageBar" model='new UsageBarDto("CPU", Model.CpuPercent, Model.CpuCount is null ? null : $"{Model.CpuCount} Kerne", s.CpuWarnPercent, s.CpuCriticalPercent)' />
+                <partial name="_UsageBar" model='new UsageBarDto("RAM", Model.Memory?.Percent, $"{Model.Memory?.Used.ToByteString()} / {Model.Memory?.Total.ToByteString()}", s.MemoryWarnPercent, s.MemoryCriticalPercent)' />
+                @if (Model.Swap?.Total > 0)
+                {
+                    <partial name="_UsageBar" model='new UsageBarDto("Swap", Model.Swap.Percent, $"{Model.Swap.Used.ToByteString()} / {Model.Swap.Total.ToByteString()}")' />
+                }
+                <dl class="row small mb-0 mt-3">
+                    <dt class="col-5 text-body-secondary fw-normal">Hostname</dt><dd class="col-7 mb-1">@(Model.Hostname ?? "–")</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Load (1/5/15)</dt>
+                    <dd class="col-7 mb-1">@(Model.Load is null ? "–" : string.Join(" / ", Model.Load.Select(l => l.ToString("0.00", DateTimeExtensions.BerlinCulture))))</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Uptime</dt><dd class="col-7 mb-0">@Model.UptimeSeconds.ToDurationString()</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-device-hdd me-2"></i>Festplatten</div>
+            <div class="card-body">
+                @foreach (var disk in Model.Disks ?? [])
+                {
+                    <partial name="_UsageBar" model='new UsageBarDto(disk.Mount, disk.Percent, $"{disk.Free.ToByteString()} frei", s.DiskWarnPercent, s.DiskCriticalPercent)' />
+                }
+                @if (Model.Disks is null or { Count: 0 })
+                {
+                    <span class="text-body-secondary small">Keine Daten</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-ethernet me-2"></i>Netzwerk</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 small">
+                    <thead><tr><th>Interface</th><th class="text-end">RX</th><th class="text-end">TX</th></tr></thead>
+                    <tbody>
+                    @foreach (var nic in Model.Network ?? [])
+                    {
+                        <tr>
+                            <td>@nic.Interface</td>
+                            <td class="text-end" title="gesamt @nic.RxTotal.ToByteString()">@nic.RxBps.ToRateString()</td>
+                            <td class="text-end" title="gesamt @nic.TxTotal.ToByteString()">@nic.TxBps.ToRateString()</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

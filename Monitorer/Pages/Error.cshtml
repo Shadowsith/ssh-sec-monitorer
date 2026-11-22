@@ -1,0 +1,12 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+<div class="card shadow-sm mx-auto card-narrow">
+    <div class="card-body text-center p-5">
+        <div class="display-5 text-body-secondary mb-3">@(Model.Code?.ToString() ?? "500")</div>
+        <h1 class="h4">@Model.Title</h1>
+        <a class="btn btn-primary mt-3" asp-page="/Index"><i class="bi bi-house me-1"></i>Zur Übersicht</a>
+    </div>
+</div>

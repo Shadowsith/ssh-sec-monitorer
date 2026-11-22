@@ -1,0 +1,11 @@
+@model UsageBarDto
+<div class="mb-2">
+    <div class="d-flex justify-content-between small">
+        <span class="text-body-secondary">@Model.Label</span>
+        <span class="fw-semibold">@Model.Percent.ToPercentString()@(Model.Detail is null ? "" : " · " + Model.Detail)</span>
+    </div>
+    <div class="progress progress-thin" role="progressbar" aria-label="@Model.Label"
+         aria-valuenow="@Model.Percent.ToCssNumber()" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar bg-@Model.CssClass" data-width="@Model.Percent.ToCssNumber()"></div>
+    </div>
+</div>
