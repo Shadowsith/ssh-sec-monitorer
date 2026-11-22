@@ -1,81 +1,81 @@
 # SshSecMonitorer
 
-Individuelles, sicheres Monitoring über SSH (SFTP) – bestehend aus drei Teilen:
+Custom, secure monitoring over SSH (SFTP), made up of three parts:
 
-| Teil | Technik | Aufgabe |
+| Part | Technology | Purpose |
 |---|---|---|
-| **Monitorer** (`Monitorer/`) | ASP.NET 10, Razor Pages, REST-Controller, PostgreSQL, Dapper + FluentMigrator | Holt zyklisch per SFTP (über SSH) die `monitoring.json` der Agents, wertet sie aus, zeigt Übersicht + Details, Live-Checks (HTTP(S), WS(S), MQTT(S)), Warnmails |
-| **Agent** (`Agent/`) | Python 3.13, Docker | Läuft auf jeder Ubuntu/Debian-VM, liest Host- und Container-Daten **nur lesend** und schreibt ausschließlich seine `monitoring.json` |
-| **Konfigurator** (`Configurator/`) | Avalonia UI (.NET 10), SQLite, Dapper + FluentMigrator | Erstellt die `config.yml` der Agents (Copy & Paste / Datei), speichert Konfigurationen lokal |
+| **Monitorer** (`Monitorer/`) | ASP.NET 10, Razor Pages, REST controllers, PostgreSQL, Dapper + FluentMigrator | Periodically fetches each agent's `monitoring.json` via SFTP (over SSH), evaluates it, shows an overview and details, runs live checks (HTTP(S), WS(S), MQTT(S)), sends alert emails |
+| **Agent** (`Agent/`) | Python 3.13, Docker | Runs on every Ubuntu/Debian VM, reads host and container data **read-only** and writes only its own `monitoring.json` |
+| **Configurator** (`Configurator/`) | Avalonia UI (.NET 10), SQLite, Dapper + FluentMigrator | Creates the agents' `config.yml` (copy & paste / file) and stores configurations locally |
 
 ```
  ┌──────────────┐  SFTP (read, SSH) ┌──────────────────────────── VM ────────────────────────────┐
  │  Monitorer   │ ────────────────▶ │  /opt/sshsecmonitorer/agent/monitoring.json                 │
- │  + Postgres  │                   │        ▲ schreibt (einziger Schreibzugriff)                │
- │              │ HTTP/WS/MQTT ───▶ │  Agent ──(internes Netz)──▶ docker-socket-proxy (POST=0)   │
- └──────────────┘  (Live-Checks)    │    └─ /proc, / read-only                                    │
+ │  + Postgres  │                   │        ▲ writes (only write access)                        │
+ │              │ HTTP/WS/MQTT ───▶ │  Agent ──(internal network)──▶ docker-socket-proxy (POST=0)│
+ └──────────────┘  (live checks)    │    └─ /proc, / read-only                                    │
                                     └─────────────────────────────────────────────────────────────┘
 ```
 
-## Schnellstart Monitorer (Docker)
+## Quick start: Monitorer (Docker)
 
 ```bash
 cd docker-compose
-./setup.sh                    # erzeugt .env mit zufälligen Secrets, fragt Admin-User ab
+./setup.sh                    # creates .env with random secrets, asks for the admin user
 docker compose up -d --build
 ```
 
-- Standardmäßig nur auf `127.0.0.1:8080` gebunden → dahinter einen Reverse Proxy mit HTTPS (nginx, Traefik, Caddy) setzen.
-  Für einen Test ohne HTTPS: `MONITORER_BIND=0.0.0.0` und `SECURE_COOKIE=false` in `.env`.
-- Ohne LDAP muss ein Admin existieren: entweder über `ADMIN_USERNAME` / `ADMIN_PASSWORD` in `.env`
-  (wird nur angelegt, solange noch kein Benutzer existiert) oder über die Seite **/Setup** beim ersten Aufruf.
-- Das Volume `dpkeys` enthält den Data-Protection-Schlüsselring, mit dem SSH-Keys und Passwörter in der DB verschlüsselt sind – **mitsichern**, sonst sind gespeicherte Secrets unbrauchbar.
+- By default bound only to `127.0.0.1:8080` → put a reverse proxy with HTTPS (nginx, Traefik, Caddy) in front of it.
+  For a test without HTTPS: set `MONITORER_BIND=0.0.0.0` and `SECURE_COOKIE=false` in `.env`.
+- Without LDAP an admin must exist: either via `ADMIN_USERNAME` / `ADMIN_PASSWORD` in `.env`
+  (only created while no user exists yet) or via the **/Setup** page on first visit.
+- The `dpkeys` volume holds the Data Protection key ring used to encrypt SSH keys and passwords in the database – **include it in backups**, otherwise stored secrets become unusable.
 
-### Lokale Entwicklung
+### Local development
 
 ```bash
 docker run -d --name ssm-dev-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17-alpine
 cd Monitorer
-dotnet run                    # http://localhost:5001, Swagger unter /swagger (Development)
+dotnet run                    # http://localhost:5001, Swagger at /swagger (Development)
 ```
 
-Die Datenbank wird beim Start automatisch angelegt und migriert (FluentMigrator).
+The database is created and migrated automatically on startup (FluentMigrator).
 
-## Agent auf einer VM installieren
+## Installing the agent on a VM
 
-1. Ordner `Agent/` auf die VM kopieren, z. B. nach `/opt/sshsecmonitorer/agent-src`.
-2. Datenverzeichnis anlegen – der Agent-Container läuft als UID 10001:
+1. Copy the `Agent/` folder to the VM, e.g. to `/opt/sshsecmonitorer/agent-src`.
+2. Create the data directory – the agent container runs as UID 10001:
    ```bash
    sudo mkdir -p /opt/sshsecmonitorer/agent
    sudo chown 10001:10001 /opt/sshsecmonitorer/agent
    sudo chmod 755 /opt/sshsecmonitorer/agent
    ```
-3. `config.yml` mit dem Konfigurator erzeugen (oder die Vorlage anpassen) und neben `docker-compose.yml` legen.
-4. Starten: `docker compose up -d --build`
-5. SSH-Benutzer für den Monitorer anlegen – am einfachsten mit dem passenden Skript aus `Monitorer/Assets/Scripts/`
-   (im Monitorer unter **SSH-Zugänge → Bearbeiten → „Nutzer auf VM anlegen“**: System wählen, Platzhalter ausfüllen,
-   „Übernehmen“, kopieren / herunterladen):
+3. Generate `config.yml` with the Configurator (or adapt the template) and place it next to `docker-compose.yml`.
+4. Start: `docker compose up -d --build`
+5. Create the SSH user for the Monitorer – easiest with the matching script from `Monitorer/Assets/Scripts/`
+   (in the Monitorer under **SSH-Zugänge → Bearbeiten → „Nutzer auf VM anlegen“** (SSH credentials → Edit → "Create user on VM"):
+   choose the system, fill in the placeholders, click „Übernehmen“ (Apply), copy / download):
 
-   | System | Skript |
+   | System | Script |
    |---|---|
    | Ubuntu ≥ 22.04 | `setup-sftp-user-ubuntu.sh` |
    | Arch Linux / Manjaro | `setup-sftp-user-arch.sh` |
    | Raspberry Pi OS / Raspbian ≥ 11 | `setup-sftp-user-raspios.sh` |
 
-   `sudo bash setup-sftp-user-<system>.sh` legt den Benutzer `sshsecmonitorer` an, der sich nur per Schlüssel (optional nur von
-   der IP des Monitorers) anmelden und nur lesend per SFTP im Agent-Ordner (chroot) zugreifen darf, sichert und prüft die
-   `sshd_config`, startet den SSH-Dienst falls nötig und gibt Pfad und Host-Key für den Monitorer aus. Die drei Skripte
-   unterscheiden sich nur in der Systemprüfung, dem Paket-Hinweis und dem Namen des SSH-Dienstes (`ssh` / `sshd`) – bei
-   Änderungen alle drei anpassen. Von Hand geht es so (kein sudo, kein Docker). Der Monitorer holt die Datei per **SFTP** – gleicher Port und
-   gleiche Anmeldung wie SSH, in OpenSSH unter Ubuntu/Debian standardmäßig aktiv:
+   `sudo bash setup-sftp-user-<system>.sh` creates the user `sshsecmonitorer`, which can only log in with a key (optionally only
+   from the Monitorer's IP) and only has read-only SFTP access to the agent folder (chroot). It backs up and validates the
+   `sshd_config`, starts the SSH service if needed and prints the path and host key for the Monitorer. The three scripts
+   differ only in the system check, the package hint and the name of the SSH service (`ssh` / `sshd`) – when changing one,
+   update all three. To do it by hand (no sudo, no Docker): the Monitorer fetches the file via **SFTP** – same port and
+   same login as SSH, enabled by default in OpenSSH on Ubuntu/Debian:
    ```bash
    sudo adduser --disabled-password --gecos "" ssm-reader
    sudo -u ssm-reader mkdir -p ~ssm-reader/.ssh
-   # öffentlichen Schlüssel des Monitorers eintragen, optional eingeschränkt:
+   # add the Monitorer's public key, optionally restricted:
    # from="10.0.0.5",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... monitorer
    sudo -u ssm-reader nano ~ssm-reader/.ssh/authorized_keys
    ```
-   Empfohlen: den Benutzer auf reines, lesendes SFTP im Agent-Ordner beschränken – ans Ende von `/etc/ssh/sshd_config`:
+   Recommended: restrict the user to pure, read-only SFTP in the agent folder – append to `/etc/ssh/sshd_config`:
    ```
    Match User ssm-reader
        ForceCommand internal-sftp -R
@@ -84,41 +84,41 @@ Die Datenbank wird beim Start automatisch angelegt und migriert (FluentMigrator)
        X11Forwarding no
        PermitTTY no
    ```
-   `/opt/sshsecmonitorer` muss `root` gehören und darf für niemanden sonst beschreibbar sein (`sudo chown root:root /opt/sshsecmonitorer && sudo chmod 755 /opt/sshsecmonitorer`).
-   Prüfen und übernehmen: `sudo sshd -t && sudo systemctl reload ssh`.
-6. Im Monitorer unter **SSH-Zugänge** den privaten Schlüssel hinterlegen und unter **Agents** die VM anlegen. Pfad:
-   `/opt/sshsecmonitorer/agent/monitoring.json`, mit Chroot `/agent/monitoring.json`. Der SSH-Host-Key wird beim ersten Abruf
-   gepinnt (TOFU) und danach strikt geprüft – für Produktion den Fingerprint vorab eintragen (`ssh-keyscan host | ssh-keygen -lf -`).
+   `/opt/sshsecmonitorer` must be owned by `root` and must not be writable by anyone else (`sudo chown root:root /opt/sshsecmonitorer && sudo chmod 755 /opt/sshsecmonitorer`).
+   Validate and apply: `sudo sshd -t && sudo systemctl reload ssh`.
+6. In the Monitorer, store the private key under **SSH-Zugänge** (SSH credentials) and add the VM under **Agents**. Path:
+   `/opt/sshsecmonitorer/agent/monitoring.json`, with chroot `/agent/monitoring.json`. The SSH host key is pinned on the first
+   fetch (TOFU) and strictly verified afterwards – for production, enter the fingerprint in advance (`ssh-keyscan host | ssh-keygen -lf -`).
 
-Test ohne Docker: `python -m ssm_agent --config config.yml --once` (mit `proc_path: /proc`, `rootfs_path: /`, `output_file: ./data/monitoring.json`).
+Test without Docker: `python -m ssm_agent --config config.yml --once` (with `proc_path: /proc`, `rootfs_path: /`, `output_file: ./data/monitoring.json`).
 
-### Lokaler Agent (Monitorer-Host selbst)
+### Local agent (the Monitorer host itself)
 
-Für den Host, auf dem der Monitorer läuft, braucht es kein SSH: Der Agent läuft im selben Compose-Projekt und schreibt in
-das Named Volume `local-agent-data`, das der Monitorer read-only unter `/app/agents/local` mountet.
+The host running the Monitorer doesn't need SSH: the agent runs in the same Compose project and writes to
+the named volume `local-agent-data`, which the Monitorer mounts read-only at `/app/agents/local`.
 
 ```bash
 cd docker-compose
 docker compose --profile local-agent up -d --build
 ```
 
-Danach unter **Agents → Agent hinzufügen** die Verbindung **Lokal** wählen und als Ordner `local` eintragen.
-Konfiguration: `docker-compose/local-agent/config.yml` (gleiches Format wie `Agent/config.yml`).
+Then, under **Agents → Agent hinzufügen** (Add agent), choose the connection **Lokal** (Local) and enter `local` as the folder.
+Configuration: `docker-compose/local-agent/config.yml` (same format as `Agent/config.yml`).
 
-- Gemountet wird immer der **Ordner**, nie die Datei – der Agent ersetzt `monitoring.json` atomar per Rename.
-- Der Monitorer liest nur unterhalb von `Monitoring:LocalAgentRoot` (`/app/agents`), lehnt symbolische Links (Ordner und
-  Datei) ab und begrenzt die Größe auf `Monitoring:MaxFileBytes`. Weitere lokale Agents: zusätzliches Volume nach
-  `/app/agents/<ordner>:ro` mounten (Ordnername `a–z 0–9 - _`).
-- Datei fehlt / nicht lesbar → Status *Unreachable* (VM-Alarm), veraltete `generated_at` → *AgentStale* – wie bei SFTP.
+- Always mount the **folder**, never the file – the agent replaces `monitoring.json` atomically via rename.
+- The Monitorer only reads below `Monitoring:LocalAgentRoot` (`/app/agents`), rejects symbolic links (folder and
+  file) and limits the size to `Monitoring:MaxFileBytes`. Additional local agents: mount an additional volume at
+  `/app/agents/<folder>:ro` (folder name `a–z 0–9 - _`).
+- File missing / unreadable → status *Unreachable* (VM alert), outdated `generated_at` → *AgentStale* – same as with SFTP.
 
-### Sicherheitsmodell des Agents
+### Agent security model
 
-- keine offenen Ports, nur ein `internal: true`-Netz zum Socket-Proxy
-- Docker-Socket nur über `tecnativa/docker-socket-proxy` mit `POST=0` (reine Lese-API: list/inspect/stats/logs)
-- `/proc` und `/` read-only gemountet, Container `read_only`, `cap_drop: ALL`, `no-new-privileges`, nicht-root
-- einziger Schreibzugriff: `/data/monitoring.json` (atomar per Temp-Datei + Rename)
+- no open ports, only an `internal: true` network to the socket proxy
+- Docker socket only via `tecnativa/docker-socket-proxy` with `POST=0` (read-only API: list/inspect/stats/logs)
+- `/proc` and `/` mounted read-only, container `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root
+- only write access: `/data/monitoring.json` (atomic via temp file + rename)
 
-## monitoring.json (Schema 1)
+## monitoring.json (schema 1)
 
 ```jsonc
 {
@@ -146,56 +146,56 @@ Konfiguration: `docker-compose/local-agent/config.yml` (gleiches Format wie `Age
 }
 ```
 
-`ports` enthält nur nach außen veröffentlichte Host-Ports (`-p` / `ports:`); nur intern exponierte Ports fehlen, nur an `127.0.0.1` gebundene nur mit `docker.ports.include_localhost: true`. Mit `docker.ports.enabled: false` fehlt der Schlüssel ganz und der Monitorer blendet die Ports aus.
+`ports` contains only host ports published externally (`-p` / `ports:`); ports that are only exposed internally are omitted, and ports bound only to `127.0.0.1` appear only with `docker.ports.include_localhost: true`. With `docker.ports.enabled: false` the key is omitted entirely and the Monitorer hides the ports.
 
-`block_io` ist das Festplatten-I/O des Containers (Block-Devices laut cgroup): `read_bps` / `write_bps` = aktuelle Rate seit der letzten Messung (`docker.interval`), `read_total` / `write_total` = Summe seit Containerstart, nur mit `docker.block_io.totals: true`.
+`block_io` is the container's disk I/O (block devices according to the cgroup): `read_bps` / `write_bps` = current rate since the last measurement (`docker.interval`), `read_total` / `write_total` = total since container start, only with `docker.block_io.totals: true`.
 
-Was getrackt wird, wie oft und wie lange der Verlauf in der Datei bleibt, steuert die `config.yml` (`interval`, `history_retention`, …).
+What is tracked, how often, and how long the history stays in the file is controlled by `config.yml` (`interval`, `history_retention`, …).
 
-## Monitorer – Aufbau
+## Monitorer – structure
 
 ```
 Monitorer/
   Controllers/        REST (api/auth, api/agents, api/ssh-credentials, api/live-checks, api/users, api/setup, api/health)
-  Pages/              Razor Pages: Login, Setup, Übersicht, Agents (Liste/Detail/Bearbeiten), SSH-Zugänge, Live-Checks, Benutzer
-  Services/           Geschäftslogik (Auth, LDAP, SFTP-Abruf, Auswertung, Alerts, Live-Checks, …)
-  Repository/         Dapper-SQL, eine Klasse pro Tabelle
+  Pages/              Razor Pages: Login, Setup, Overview, Agents (list/detail/edit), SSH credentials, Live checks, Users
+  Services/           Business logic (auth, LDAP, SFTP fetch, evaluation, alerts, live checks, …)
+  Repository/         Dapper SQL, one class per table
   Data/Db|Dto|Monitoring|Result
   Migrations/         FluentMigrator
-  BackgroundServices/ Polling der Agents, Live-Checks
+  BackgroundServices/ Agent polling, live checks
   Middleware/ Filters/ Extensions/ Assets/
 ```
 
-- **Lastverteilung:** Jeder Agent (und jeder Live-Check) bekommt einen festen Zeitversatz innerhalb seines Intervalls – bei 100 VMs mit 60 s Intervall starten also etwa 17 Abrufe je 10 s statt 100 auf einmal, auch direkt nach einem Neustart. Zusätzlich begrenzt: `Monitoring:MaxParallelPolls` (gleichzeitige SFTP-Abrufe, Standard 8) und `Monitoring:MaxPollsPerTick` (Starts je Tick, 0 = unbegrenzt; Rest folgt im nächsten Tick, am längsten wartende zuerst). Ein Agent wird nie doppelt abgerufen; „Jetzt abrufen“ während eines laufenden Abrufs gibt 423 zurück. Die Detailseite zeigt den nächsten geplanten Abruf.
-- **Login / Session:** JWT, im Browser als HttpOnly + SameSite=Strict Cookie; API-Clients senden `Authorization: Bearer …` (`POST /api/auth/login`).
-- **CSRF:** Razor-Formulare mit Antiforgery-Token; REST-Aufrufe mit Session-Cookie benötigen `X-CSRF-TOKEN` (`GET /api/auth/csrf-token`).
-- **Rollen:** `Admin` (verwalten) und `User` (lesen). Bei LDAP folgt die Rolle der Gruppe `Ldap:AdminGroupDn`.
-- **Weitere Härtung:** CSP ohne Inline-Skripte, Login-Sperre nach 5 Fehlversuchen, deaktivierte Benutzer verlieren sofort den Zugriff, Secrets per Data Protection verschlüsselt, SSH-Host-Key-Pinning.
-- **Alarme (Seite „Alarme“, nur Admins):** Regeln mit Szenario, Geltungsbereich, Verzögerung, Wiederholintervall, Entwarnung und eigenen Empfängern. Versand per SMTP mit oder ohne Authentifizierung (`Mail:*`). Szenarien:
-  | Szenario | Auslöser |
+- **Load distribution:** Every agent (and every live check) gets a fixed time offset within its interval – with 100 VMs at a 60 s interval, about 17 fetches start every 10 s instead of 100 at once, even right after a restart. Additionally limited by `Monitoring:MaxParallelPolls` (concurrent SFTP fetches, default 8) and `Monitoring:MaxPollsPerTick` (starts per tick, 0 = unlimited; the rest follow in the next tick, longest-waiting first). An agent is never fetched twice at the same time; „Jetzt abrufen“ (Fetch now) during a running fetch returns 423. The detail page shows the next scheduled fetch.
+- **Login / session:** JWT, stored in the browser as an HttpOnly + SameSite=Strict cookie; API clients send `Authorization: Bearer …` (`POST /api/auth/login`).
+- **CSRF:** Razor forms use an antiforgery token; REST calls with the session cookie require `X-CSRF-TOKEN` (`GET /api/auth/csrf-token`).
+- **Roles:** `Admin` (manage) and `User` (read). With LDAP the role follows the group `Ldap:AdminGroupDn`.
+- **Further hardening:** CSP without inline scripts, login lockout after 5 failed attempts, disabled users lose access immediately, secrets encrypted via Data Protection, SSH host key pinning.
+- **Alerts („Alarme“ page, admins only):** Rules with scenario, scope, delay, repeat interval, all-clear and their own recipients. Sent via SMTP with or without authentication (`Mail:*`). Scenarios:
+  | Scenario | Trigger |
   |---|---|
-  | VM nicht erreichbar | SSH-Abruf schlägt fehl |
-  | Agent meldet sich nicht mehr | `generated_at` der monitoring.json älter als N Minuten |
-  | Grenzwerte / Agent-Status | Status Warnung bzw. Kritisch (CPU, RAM, Disk, …) |
-  | Live-Dienst nicht erreichbar | HTTP(S)/WS(S)/MQTT(S)-Check down |
-  | Container gestoppt / unhealthy | Container läuft nicht, restarting, dead, unhealthy (optional sauber beendete ignorieren) |
-  | Container verschwunden | früher gesehener Container fehlt |
+  | VM unreachable | SSH fetch fails |
+  | Agent stopped reporting | `generated_at` of monitoring.json older than N minutes |
+  | Thresholds / agent status | Status Warning or Critical (CPU, RAM, disk, …) |
+  | Live service unreachable | HTTP(S)/WS(S)/MQTT(S) check down |
+  | Container stopped / unhealthy | Container not running, restarting, dead, unhealthy (optionally ignore cleanly exited ones) |
+  | Container disappeared | A previously seen container is missing |
 
-  Ist eine VM nicht erreichbar, kommt nur der VM-Alarm; meldet sich ihr Agent nicht, nur „Agent meldet sich nicht mehr“. Status- und Container-Alarme dieser VM ruhen solange (keine Erinnerung, keine Entwarnung) und laufen weiter, sobald wieder aktuelle Daten da sind.
+  If a VM is unreachable, only the VM alert is sent; if its agent stops reporting, only "Agent stopped reporting". Status and container alerts for that VM are paused meanwhile (no reminders, no all-clear) and resume as soon as current data is available again.
 
-  Ablauf: erkannt → nach der Verzögerung erste Mail → solange der Zustand anhält alle *Wiederholung* Minuten eine Erinnerung (0 = einmalig) → behoben → Entwarnung. Beim ersten Start werden fünf Standardregeln angelegt.
+  Flow: detected → first mail after the delay → a reminder every *repeat* minutes while the condition persists (0 = once only) → resolved → all-clear. Five default rules are created on first start.
 
-## Konfigurator
+## Configurator
 
 ```bash
 cd Configurator
 dotnet run
 ```
 
-Konfigurationen werden in `%APPDATA%/SshSecMonitorer/Configurator/configurator.db` (Linux: `~/.config/…`) gespeichert.
-Die rechte Spalte zeigt die fertige `config.yml` – kopieren, als Datei speichern oder eine bestehende `config.yml` aus der Zwischenablage importieren.
+Configurations are stored in `%APPDATA%/SshSecMonitorer/Configurator/configurator.db` (Linux: `~/.config/…`).
+The right-hand column shows the finished `config.yml` – copy it, save it as a file, or import an existing `config.yml` from the clipboard.
 
-## Hinweise
+## Notes
 
-- Frontend-Bibliotheken (Bootstrap 5.3, Bootstrap Icons, Apache ECharts 6) liegen lokal unter `Monitorer/wwwroot/lib` – kein CDN nötig (wichtig für interne Netze und die CSP).
-- Die NuGet-Versionen in den `.csproj`-Dateien beim ersten `dotnet restore` prüfen und bei Bedarf auf den aktuellen Stand bringen.
+- Frontend libraries (Bootstrap 5.3, Bootstrap Icons, Apache ECharts 6) are bundled locally under `Monitorer/wwwroot/lib` – no CDN required (important for internal networks and the CSP).
+- Check the NuGet versions in the `.csproj` files on the first `dotnet restore` and update them if needed.
