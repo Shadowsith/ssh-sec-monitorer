@@ -1,21 +1,27 @@
 // Global UI behaviour. No inline scripts are used (Content-Security-Policy: script-src 'self').
 class SiteUi {
     static init() {
-        SiteUi.applyWidths();
         SiteUi.bindConfirm();
-        SiteUi.bindAutoSubmit();
-        SiteUi.bindCopy();
         SiteUi.bindThemeToggle();
-        SiteUi.bindToggleGroups();
-        SiteUi.rememberCollapse();
-        SiteUi.bindAccordionAll();
-        SiteUi.bindContainerFilter();
-        SiteUi.autoRefresh();
+        SiteUi.initContent(document);
+        // live.js swapped the page content: bind the new elements
+        document.addEventListener('ssm:content-updated', e => SiteUi.initContent(e.detail.root));
+    }
+
+    /** Everything bound to single elements - runs for the whole page and again for content swapped in by live.js. */
+    static initContent(root) {
+        SiteUi.applyWidths(root);
+        SiteUi.bindAutoSubmit(root);
+        SiteUi.bindCopy(root);
+        SiteUi.bindToggleGroups(root);
+        SiteUi.rememberCollapse(root);
+        SiteUi.bindAccordionAll(root);
+        SiteUi.bindContainerFilter(root);
     }
 
     /** Progress bars: CSP forbids inline style attributes, so widths come from data-width. */
-    static applyWidths() {
-        document.querySelectorAll('[data-width]').forEach(el => {
+    static applyWidths(root) {
+        root.querySelectorAll('[data-width]').forEach(el => {
             const value = parseFloat(el.dataset.width);
             el.style.width = (isNaN(value) ? 0 : Math.min(100, Math.max(0, value))) + '%';
         });
@@ -33,15 +39,15 @@ class SiteUi {
     }
 
     /** Selects with data-auto-submit submit their form on change (e.g. role per user). */
-    static bindAutoSubmit() {
-        document.querySelectorAll('select[data-auto-submit]').forEach(select => {
+    static bindAutoSubmit(root) {
+        root.querySelectorAll('select[data-auto-submit]').forEach(select => {
             select.addEventListener('change', () => select.form && select.form.requestSubmit());
         });
     }
 
     /** Buttons with data-copy-target="#id" copy the element's text to the clipboard. */
-    static bindCopy() {
-        document.querySelectorAll('[data-copy-target]').forEach(btn => btn.addEventListener('click', async () => {
+    static bindCopy(root) {
+        root.querySelectorAll('[data-copy-target]').forEach(btn => btn.addEventListener('click', async () => {
             const source = document.querySelector(btn.dataset.copyTarget);
             if (!source || !navigator.clipboard) return;
             await navigator.clipboard.writeText(source.textContent);
@@ -63,17 +69,17 @@ class SiteUi {
      * Shows / hides form sections: inputs with data-toggle-group="x" control
      * elements with data-show-for="x" data-show-value="value" (several values: comma-separated).
      */
-    static bindToggleGroups() {
-        const groups = new Set([...document.querySelectorAll('[data-toggle-group]')].map(el => el.dataset.toggleGroup));
+    static bindToggleGroups(root) {
+        const groups = new Set([...root.querySelectorAll('[data-toggle-group]')].map(el => el.dataset.toggleGroup));
         groups.forEach(group => {
-            const inputs = document.querySelectorAll(`[data-toggle-group="${group}"]`);
+            const inputs = root.querySelectorAll(`[data-toggle-group="${group}"]`);
             const update = () => {
                 let value = null;
                 inputs.forEach(input => {
                     if (input.type === 'radio') { if (input.checked) value = input.value; }
                     else value = input.value;
                 });
-                document.querySelectorAll(`[data-show-for="${group}"]`).forEach(el => {
+                root.querySelectorAll(`[data-show-for="${group}"]`).forEach(el => {
                     el.classList.toggle('d-none', !el.dataset.showValue.split(',').includes(value));
                 });
             };
@@ -83,8 +89,8 @@ class SiteUi {
     }
 
     /** Accordions with data-remember-collapse="key" keep their open items across reloads (session storage). */
-    static rememberCollapse() {
-        document.querySelectorAll('[data-remember-collapse]').forEach(container => {
+    static rememberCollapse(root) {
+        root.querySelectorAll('[data-remember-collapse]').forEach(container => {
             const key = container.dataset.rememberCollapse;
             const items = [...container.querySelectorAll('.accordion-collapse')];
             let stored = null;
@@ -110,8 +116,8 @@ class SiteUi {
     }
 
     /** Buttons with data-accordion-all="show|hide" data-target="#accordion" open / close every item. */
-    static bindAccordionAll() {
-        document.querySelectorAll('[data-accordion-all]').forEach(btn => btn.addEventListener('click', () => {
+    static bindAccordionAll(root) {
+        root.querySelectorAll('[data-accordion-all]').forEach(btn => btn.addEventListener('click', () => {
             const container = document.querySelector(btn.dataset.target);
             if (!container || typeof bootstrap === 'undefined') return;
             container.querySelectorAll('.accordion-collapse').forEach(item => {
@@ -122,8 +128,8 @@ class SiteUi {
     }
 
     /** Switch with data-container-filter hides cards with data-running="false"; the choice is remembered. */
-    static bindContainerFilter() {
-        document.querySelectorAll('[data-container-filter]').forEach(input => {
+    static bindContainerFilter(root) {
+        root.querySelectorAll('[data-container-filter]').forEach(input => {
             const key = input.dataset.remember;
             try { input.checked = key ? localStorage.getItem(key) === 'true' : input.checked; } catch (e) { /* ignore */ }
             const apply = () => {
@@ -140,20 +146,6 @@ class SiteUi {
             input.addEventListener('change', apply);
             apply();
         });
-    }
-
-    /** Pages with data-auto-refresh="seconds" reload themselves, unless the user is typing or a panel is open. */
-    static autoRefresh() {
-        const el = document.querySelector('[data-auto-refresh]');
-        if (!el) return;
-        const seconds = parseInt(el.dataset.autoRefresh, 10);
-        if (!seconds) return;
-        window.setInterval(() => {
-            // open accordion items are remembered (rememberCollapse) and do not block the refresh
-            const busy = document.querySelector('.collapse.show:not(.accordion-collapse), .modal.show, .offcanvas.show') ||
-                (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName));
-            if (!busy && document.visibilityState === 'visible') window.location.reload();
-        }, seconds * 1000);
     }
 }
 

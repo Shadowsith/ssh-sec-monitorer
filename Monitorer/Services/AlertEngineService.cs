@@ -15,11 +15,13 @@ public class AlertEngineService
     private readonly AlertStateRepository _states;
     private readonly AlertConditionService _conditions;
     private readonly AlertService _mail;
+    private readonly LiveUpdateService _live;
     private readonly ILogger<AlertEngineService> _logger;
 
     public AlertEngineService(AlertRuleRepository rules, AlertStateRepository states, AlertConditionService conditions,
-        AlertService mail, ILogger<AlertEngineService> logger)
+        AlertService mail, LiveUpdateService live, ILogger<AlertEngineService> logger)
     {
+        _live = live;
         _rules = rules;
         _states = states;
         _conditions = conditions;
@@ -33,11 +35,15 @@ public class AlertEngineService
         var context = await _conditions.LoadContext();
         var rules = (await _rules.SelectEnabled()).ToList();
         var states = (await _states.Select()).ToList();
+        var changed = false;   // anything the UI shows (active alerts, messages, sent mails)
 
         // alerts of disabled / deleted rules are simply dropped (no recovery mail)
         var enabledIds = rules.Select(r => r.Id).ToHashSet();
         foreach (var orphan in states.Where(s => !enabledIds.Contains(s.RuleId)))
+        {
             await _states.Delete(orphan.Id);
+            changed = true;
+        }
 
         foreach (var rule in rules)
         {
@@ -59,11 +65,13 @@ public class AlertEngineService
                         FirstDetectedAt = now
                     };
                     state.Id = await _states.Insert(state);
+                    changed = true;
                     _logger.LogInformation("Alert {Rule}: {Subject} detected", rule.Name, condition.SubjectName);
                 }
+                changed |= state.SubjectName != condition.SubjectName || state.Message != condition.Message;
                 state.SubjectName = condition.SubjectName;
                 state.Message = condition.Message;
-                await SendIfDue(rule, state, now, ct);
+                changed |= await SendIfDue(rule, state, now, ct);
             }
 
             foreach (var resolved in active.Values.Where(s => !conditions.ContainsKey(s.SubjectKey)))
@@ -74,9 +82,13 @@ public class AlertEngineService
                 if (rule.NotifyRecovery && resolved.SendCount > 0)
                     await _mail.Send(rule, resolved, AlertService.MailKind.Recovery, ct);
                 await _states.Delete(resolved.Id);
+                changed = true;
                 _logger.LogInformation("Alert {Rule}: {Subject} resolved", rule.Name, resolved.SubjectName);
             }
         }
+
+        if (changed)
+            await _live.Publish(LiveUpdateService.Alerts);
     }
 
     /// <summary>POST api/alert-rules/{id}/test: sends a test mail to the rule's recipients.</summary>
@@ -103,8 +115,10 @@ public class AlertEngineService
             : ServiceResult<bool>.Conflict("Die Testmail konnte nicht gesendet werden – Details im Log.");
     }
 
-    private async Task SendIfDue(AlertRuleDb rule, AlertStateDb state, DateTime now, CancellationToken ct)
+    /// <summary>True if a mail went out.</summary>
+    private async Task<bool> SendIfDue(AlertRuleDb rule, AlertStateDb state, DateTime now, CancellationToken ct)
     {
+        var sent = false;
         var due = state.LastSentAt is null
             ? (now - state.FirstDetectedAt).TotalMinutes >= rule.DelayMinutes
             : rule.RepeatMinutes > 0 && (now - state.LastSentAt.Value).TotalMinutes >= rule.RepeatMinutes;
@@ -116,8 +130,10 @@ public class AlertEngineService
             {
                 state.LastSentAt = now;
                 state.SendCount++;
+                sent = true;
             }
         }
         await _states.Update(state);
+        return sent;
     }
 }

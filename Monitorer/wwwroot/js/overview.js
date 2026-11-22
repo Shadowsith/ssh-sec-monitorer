@@ -126,3 +126,4 @@ class OverviewCharts {
 }
 
 document.addEventListener('DOMContentLoaded', OverviewCharts.init);
+document.addEventListener('ssm:content-updated', OverviewCharts.init);

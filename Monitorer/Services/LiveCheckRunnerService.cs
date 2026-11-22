@@ -20,11 +20,13 @@ public class LiveCheckRunnerService
     private readonly SecretService _secrets;
     private readonly IHttpClientFactory _httpClients;
     private readonly PollScheduler _scheduler;
+    private readonly LiveUpdateService _live;
     private readonly ILogger<LiveCheckRunnerService> _logger;
 
     public LiveCheckRunnerService(LiveCheckRepository repo, SecretService secrets,
-        IHttpClientFactory httpClients, PollScheduler scheduler, ILogger<LiveCheckRunnerService> logger)
+        IHttpClientFactory httpClients, PollScheduler scheduler, LiveUpdateService live, ILogger<LiveCheckRunnerService> logger)
     {
+        _live = live;
         _scheduler = scheduler;
         _repo = repo;
         _secrets = secrets;
@@ -64,6 +66,7 @@ public class LiveCheckRunnerService
         try
         {
             await RunAndStore(check, ct);
+            await _live.Publish(LiveUpdateService.LiveChecks);
             return true;
         }
         finally
@@ -94,14 +97,14 @@ public class LiveCheckRunnerService
         var watch = Stopwatch.StartNew();
         try
         {
-            var message = check.CheckType switch
+            var (status, message) = check.CheckType switch
             {
                 LiveCheckTypes.Http => await CheckHttp(check, timeout.Token),
                 LiveCheckTypes.WebSocket => await CheckWebSocket(check, timeout.Token),
                 LiveCheckTypes.Mqtt => await CheckMqtt(check, timeout.Token),
                 _ => throw new InvalidOperationException($"Unknown check type {check.CheckType}")
             };
-            return new LiveCheckResultDto { Status = MonitorStatus.Up, ResponseMs = (int)watch.ElapsedMilliseconds, Message = message };
+            return new LiveCheckResultDto { Status = status, ResponseMs = (int)watch.ElapsedMilliseconds, Message = message };
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -114,7 +117,7 @@ public class LiveCheckRunnerService
         }
     }
 
-    private async Task<string> CheckHttp(LiveCheckDb check, CancellationToken ct)
+    private async Task<(string Status, string Message)> CheckHttp(LiveCheckDb check, CancellationToken ct)
     {
         var client = _httpClients.CreateClient(check.IgnoreTlsErrors ? InsecureHttpClientName : HttpClientName);
         using var request = new HttpRequestMessage(HttpMethod.Get, check.Target);
@@ -124,20 +127,30 @@ public class LiveCheckRunnerService
         if (!ok)
             throw new InvalidOperationException($"HTTP {code} {response.ReasonPhrase}"
                 + (check.ExpectedStatusCode is null ? "" : $" (erwartet {check.ExpectedStatusCode})"));
-        return $"HTTP {code}";
+        return (MonitorStatus.Up, $"HTTP {code}");
     }
 
-    private static async Task<string> CheckWebSocket(LiveCheckDb check, CancellationToken ct)
+    private static async Task<(string Status, string Message)> CheckWebSocket(LiveCheckDb check, CancellationToken ct)
     {
         using var socket = new ClientWebSocket();
+        socket.Options.CollectHttpResponseDetails = true;
         if (check.IgnoreTlsErrors)
             socket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-        await socket.ConnectAsync(new Uri(check.Target), ct);
+        try
+        {
+            await socket.ConnectAsync(new Uri(check.Target), ct);
+        }
+        catch (WebSocketException) when ((int)socket.HttpStatusCode is >= 400 and < 500)
+        {
+            // the service answered the handshake (e.g. 401 before auth) -> online, but rejects the check
+            var code = (int)socket.HttpStatusCode;
+            return (MonitorStatus.Degraded, $"HTTP {code} statt 101 beim WebSocket-Handshake");
+        }
         await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "monitor check", ct);
-        return "WebSocket-Handshake erfolgreich";
+        return (MonitorStatus.Up, "WebSocket-Handshake erfolgreich");
     }
 
-    private async Task<string> CheckMqtt(LiveCheckDb check, CancellationToken ct)
+    private async Task<(string Status, string Message)> CheckMqtt(LiveCheckDb check, CancellationToken ct)
     {
         var uri = new Uri(check.Target);
         var useTls = uri.Scheme == "mqtts";
@@ -161,6 +174,6 @@ public class LiveCheckRunnerService
         using var client = new MqttFactory().CreateMqttClient();
         var result = await client.ConnectAsync(builder.Build(), ct);
         await client.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().Build(), CancellationToken.None);
-        return $"MQTT verbunden ({result.ResultCode})";
+        return (MonitorStatus.Up, $"MQTT verbunden ({result.ResultCode})");
     }
 }

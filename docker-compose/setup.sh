@@ -26,6 +26,6 @@ if [[ -n "$admin_pw" ]]; then
   sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${escaped}|" .env
 fi
 
-echo ".env created. Review it (SMTP, LDAP, SECURE_COOKIE), then start with:"
+echo ".env created. Review it (SMTP, LDAP, MONITORER_ALLOW_HTTP), then start with:"
 echo "  docker compose up -d --build"
 echo "After the first login you can remove ADMIN_PASSWORD from .env."

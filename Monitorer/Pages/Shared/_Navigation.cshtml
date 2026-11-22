@@ -1,3 +1,4 @@
+@inject Microsoft.Extensions.Options.IOptions<SwaggerSettings> SwaggerOptions
 @functions {
     private string Active(string prefix) =>
         (ViewContext.RouteData.Values["page"] as string)?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true
@@ -22,6 +23,10 @@
                 <li class="nav-item"><a class="nav-link @Active("/Alerts/")" asp-page="/Alerts/Index"><i class="bi bi-bell me-2"></i>Alarme</a></li>
                 <li class="nav-item"><a class="nav-link @Active("/SshCredentials/")" asp-page="/SshCredentials/Index"><i class="bi bi-key me-2"></i>SSH-Zugänge</a></li>
                 <li class="nav-item"><a class="nav-link @Active("/Users/")" asp-page="/Users/Index"><i class="bi bi-people me-2"></i>Benutzer</a></li>
+                @if (SwaggerOptions.Value.Enabled)
+                {
+                    <li class="nav-item"><a class="nav-link link-body-emphasis" href="~/swagger" target="_blank" rel="noopener"><i class="bi bi-braces me-2"></i>API</a></li>
+                }
             </ul>
         }
     </div>

@@ -4,16 +4,13 @@
     ViewData["Title"] = "Agents";
     var s = Model.Settings;
 }
-<div data-auto-refresh="30">
+<div data-live="agents">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h1 class="h3 mb-0">Agents</h1>
-        <div class="d-flex align-items-center gap-3">
-            <span class="text-body-secondary small"><i class="bi bi-arrow-repeat me-1"></i>Aktualisiert sich alle 30 s</span>
-            @if (User.IsAdmin())
-            {
-                <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>Agent hinzufügen</a>
-            }
-        </div>
+        @if (User.IsAdmin())
+        {
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>Agent hinzufügen</a>
+        }
     </div>
 
     @if (Model.Agents.Count == 0)

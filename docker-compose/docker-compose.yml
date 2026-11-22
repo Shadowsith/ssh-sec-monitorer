@@ -42,7 +42,7 @@ services:
       DbConfig__MasterConnectionString: "Host=postgres;Port=5432;Database=postgres;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Jwt__Key: ${JWT_KEY}
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES:-480}
-      Auth__SecureCookie: ${SECURE_COOKIE:-true}
+      Auth__AllowHttp: ${MONITORER_ALLOW_HTTP:-false}
       Setup__AdminUserName: ${ADMIN_USERNAME:-}
       Setup__AdminPassword: ${ADMIN_PASSWORD:-}
       Swagger__Enabled: ${SWAGGER_ENABLED:-false}

@@ -35,3 +35,4 @@ class AgentDetailCharts {
 }
 
 document.addEventListener('DOMContentLoaded', AgentDetailCharts.init);
+document.addEventListener('ssm:content-updated', AgentDetailCharts.init);

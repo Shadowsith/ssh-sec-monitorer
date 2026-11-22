@@ -3,12 +3,14 @@ using FluentMigrator.Runner;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi.Models;
 using Monitorer;
 using Monitorer.BackgroundServices;
 using Monitorer.Data;
 using Monitorer.Extensions;
 using Monitorer.Filters;
+using Monitorer.Hubs;
 using Monitorer.Middleware;
 using Monitorer.Repository;
 using Monitorer.Services;
@@ -35,6 +37,7 @@ try
     builder.Services.Configure<LdapSettings>(config.GetSection("Ldap"));
     builder.Services.Configure<MailSettings>(config.GetSection("Mail"));
     builder.Services.Configure<MonitoringSettings>(config.GetSection("Monitoring"));
+    builder.Services.Configure<SwaggerSettings>(config.GetSection("Swagger"));
 
     var dbConfig = config.GetSection("DbConfig").Get<DbConfig>() ?? new DbConfig();
     var jwtSettings = config.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
@@ -82,7 +85,8 @@ try
                 },
                 OnChallenge = ctx =>
                 {
-                    if (ctx.Request.Path.StartsWithSegments("/api"))
+                    // API and SignalR (fetch / WebSocket) get a plain 401 instead of the login redirect
+                    if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs"))
                         return Task.CompletedTask;
                     ctx.HandleResponse();
                     var returnUrl = Uri.EscapeDataString(ctx.Request.Path + ctx.Request.QueryString);
@@ -103,12 +107,13 @@ try
         o.HeaderName = "X-CSRF-TOKEN";
         o.Cookie.Name = "ssm_csrf";
         o.Cookie.SameSite = SameSiteMode.Strict;
-        o.Cookie.SecurePolicy = authSettings.SecureCookie ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+        o.Cookie.SecurePolicy = authSettings.AllowHttp ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     });
 
     // ---------------------------------------------------------------- MVC: REST controllers + Razor Pages
     builder.Services.AddControllers(o => o.Filters.Add<ApiAntiforgeryFilter>());
     builder.Services.AddRazorPages();
+    builder.Services.AddSignalR();
 
     if (swaggerSettings.Enabled)
     {
@@ -150,6 +155,7 @@ try
     builder.Services.AddSingleton<SetupState>();
     builder.Services.AddSingleton<LoginThrottleService>();
     builder.Services.AddSingleton<PollScheduler>();
+    builder.Services.AddSingleton<LiveUpdateService>();
 
     builder.Services.AddScoped<UserRepository>();
     builder.Services.AddScoped<SshCredentialRepository>();
@@ -197,11 +203,20 @@ try
     app.MigrateDatabase();
     await app.SeedInitialAdmin();
 
+    // Behind the HTTPS reverse proxy: take the original scheme from X-Forwarded-Proto so that
+    // secure cookies / antiforgery work. Only the scheme is taken over, never X-Forwarded-For -
+    // the client IP feeds the login throttle and must not be spoofable.
+    var forwardedOptions = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto };
+    forwardedOptions.KnownIPNetworks.Clear();   // the proxy reaches the container via a Docker network
+    forwardedOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedOptions);
+
     app.UseSerilogRequestLogging();
     if (!app.Environment.IsDevelopment())
     {
         app.UseExceptionHandler("/Error");
-        app.UseHsts();
+        if (!authSettings.AllowHttp)
+            app.UseHsts();
     }
     app.UseMiddleware<SecurityHeadersHandler>();
     // HTML error pages only for the UI; the API keeps its plain status codes
@@ -222,6 +237,8 @@ try
 
     app.MapControllers();
     app.MapRazorPages();
+    // the session JWT expires -> the connection is closed; live.js then reloads into the login page
+    app.MapHub<MonitorHub>(MonitorHub.Path, o => o.CloseOnAuthenticationExpiration = true);
 
     app.Run();
 }

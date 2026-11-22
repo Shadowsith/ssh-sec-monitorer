@@ -8,7 +8,7 @@
     ViewData["ForgetPage"] = "/Agents/Detail";
     ViewData["AgentId"] = agent.Id;
 }
-<div data-auto-refresh="60">
+<div data-live="@Monitorer.Services.LiveUpdateService.Agent(agent.Id)">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
         <div>
             <h1 class="h3 mb-1 d-flex align-items-center gap-2">
@@ -106,9 +106,9 @@
             </div>
         }
     }
-</div>
 
-<script type="application/json" id="history-data">@Html.Raw(Model.HistoryJson)</script>
+    <script type="application/json" id="history-data">@Html.Raw(Model.HistoryJson)</script>
+</div>
 
 @section Scripts {
     <script src="~/lib/echarts/echarts.min.js" asp-append-version="true"></script>

@@ -86,11 +86,20 @@ class DockerCollector:
         if not self._cfg.logs.enabled or self._client is None:
             return
         try:
-            for container in self._client.containers.list(all=True):
-                if self._include(container.name):
-                    self._logs[container.id] = self._read_logs(container)
+            containers = self._client.containers.list(all=True)
         except Exception as exc:
             log.warning("Docker log collection failed: %s", exc)
+            return
+        for container in containers:
+            if not self._include(container.name):
+                continue
+            try:
+                self._logs[container.id] = self._read_logs(container)
+            except Exception as exc:
+                # e.g. 501 for logging drivers without read support (none, syslog, gelf, ...)
+                # - one unreadable container must not stop log collection for the others
+                self._logs.pop(container.id, None)
+                log.debug("Docker logs for %s not readable: %s", container.name, exc)
 
     def snapshot(self) -> dict[str, Any]:
         containers = []

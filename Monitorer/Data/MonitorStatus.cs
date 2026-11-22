@@ -11,6 +11,8 @@ public static class MonitorStatus
 
     // live checks
     public const string Up = "Up";
+    /// <summary>Service answers but rejects the check, e.g. WebSocket handshake answered with 401.</summary>
+    public const string Degraded = "Degraded";
     public const string Down = "Down";
 
     /// <summary>Higher = worse; used to combine several findings.</summary>
@@ -18,7 +20,7 @@ public static class MonitorStatus
     {
         Ok or Up => 0,
         Unknown => 1,
-        Warning => 2,
+        Warning or Degraded => 2,
         Critical => 3,
         Unreachable or Down => 4,
         _ => 1
@@ -28,7 +30,7 @@ public static class MonitorStatus
     public static string CssClass(string? status) => status switch
     {
         Ok or Up => "success",
-        Warning => "warning",
+        Warning or Degraded => "warning",
         Critical or Down or Unreachable => "danger",
         _ => "secondary"
     };

@@ -26,7 +26,10 @@ docker compose up -d --build
 ```
 
 - By default bound only to `127.0.0.1:8080` → put a reverse proxy with HTTPS (nginx, Traefik, Caddy) in front of it.
-  For a test without HTTPS: set `MONITORER_BIND=0.0.0.0` and `SECURE_COOKIE=false` in `.env`.
+  For a test without HTTPS: set `MONITORER_BIND=0.0.0.0` and `MONITORER_ALLOW_HTTP=true` in `.env`.
+  The pages update live via SignalR (`/hubs/monitor`): the proxy must pass WebSocket upgrades through
+  (nginx: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`).
+  Without that it falls back to Server-Sent Events / long polling, which also works, just less efficiently.
 - Without LDAP an admin must exist: either via `ADMIN_USERNAME` / `ADMIN_PASSWORD` in `.env`
   (only created while no user exists yet) or via the **/Setup** page on first visit.
 - The `dpkeys` volume holds the Data Protection key ring used to encrypt SSH keys and passwords in the database – **include it in backups**, otherwise stored secrets become unusable.

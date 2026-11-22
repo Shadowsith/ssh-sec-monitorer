@@ -4,6 +4,7 @@
     {
         MonitorStatus.Ok => ("OK", "bi-check-circle"),
         MonitorStatus.Up => ("Erreichbar", "bi-check-circle"),
+        MonitorStatus.Degraded => ("Erreichbar mit Fehlern", "bi-exclamation-circle"),
         MonitorStatus.Warning => ("Warnung", "bi-exclamation-triangle"),
         MonitorStatus.Critical => ("Kritisch", "bi-x-octagon"),
         MonitorStatus.Unreachable => ("Nicht erreichbar", "bi-plug"),

@@ -20,7 +20,9 @@ public class JwtSettings
 public class AuthSettings
 {
     public string CookieName { get; set; } = "ssm_session";
-    public bool SecureCookie { get; set; } = true;
+    /// <summary>Allow plain HTTP: cookies are only marked Secure on HTTPS requests and HSTS is off.
+    /// Keep false in production (HTTPS via reverse proxy); true only for tests without HTTPS.</summary>
+    public bool AllowHttp { get; set; }
     public int MinPasswordLength { get; set; } = 12;
 }
 

@@ -2,10 +2,24 @@
 class SsmCharts {
     static instances = [];
 
-    /** Creates a chart in the element with the given id; option is a function so it can be rebuilt on theme change. */
+    /**
+     * Creates a chart in the element with the given id; option is a function so it can be rebuilt on theme change.
+     * Called again for the same element (live update, see live.js) it only sets the new data, with a transition.
+     */
     static create(id, buildOption) {
+        SsmCharts.instances = SsmCharts.instances.filter(e => {
+            if (e.el.isConnected) return true;
+            if (e.chart) e.chart.dispose();     // element was removed by a live update
+            return false;
+        });
         const el = document.getElementById(id);
         if (!el || typeof echarts === 'undefined') return null;
+        const existing = SsmCharts.instances.find(e => e.el === el);
+        if (existing) {
+            existing.buildOption = buildOption;
+            SsmCharts.update(existing);
+            return existing;
+        }
         const entry = { el, buildOption, chart: null };
         SsmCharts.instances.push(entry);
         SsmCharts.render(entry);
@@ -20,6 +34,13 @@ class SsmCharts {
         entry.chart.setOption(option);
     }
 
+    /** New data into the existing chart; series / axes / title are replaced so they may come and go (e.g. empty state). */
+    static update(entry) {
+        const option = entry.buildOption();
+        option.backgroundColor = 'transparent';
+        entry.chart.setOption(option, { replaceMerge: ['series', 'title', 'xAxis', 'yAxis'] });
+    }
+
     static isDark() {
         return document.documentElement.getAttribute('data-bs-theme') === 'dark';
     }
@@ -32,7 +53,7 @@ class SsmCharts {
     static statusColor(status) {
         switch (status) {
             case 'Ok': case 'Up': return '#198754';
-            case 'Warning': return '#ffc107';
+            case 'Warning': case 'Degraded': return '#ffc107';
             case 'Critical': return '#dc3545';
             case 'Unreachable': case 'Down': return '#842029';
             case 'Disabled': return '#adb5bd';
@@ -42,7 +63,7 @@ class SsmCharts {
 
     static statusText(status) {
         return {
-            Ok: 'OK', Up: 'Erreichbar', Warning: 'Warnung', Critical: 'Kritisch', Unreachable: 'Nicht erreichbar',
+            Ok: 'OK', Up: 'Erreichbar', Degraded: 'Erreichbar mit Fehlern', Warning: 'Warnung', Critical: 'Kritisch', Unreachable: 'Nicht erreichbar',
             Down: 'Down', Disabled: 'Deaktiviert', Unknown: 'Unbekannt'
         }[status] || status;
     }

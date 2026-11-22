@@ -16,13 +16,15 @@ public class AgentPollService
     private readonly MonitoringEvaluationService _evaluation;
     private readonly KnownContainerService _known;
     private readonly PollScheduler _scheduler;
+    private readonly LiveUpdateService _live;
     private readonly MonitoringSettings _settings;
     private readonly ILogger<AgentPollService> _logger;
 
     public AgentPollService(AgentRepository agents, AgentSnapshotRepository snapshots, MonitoringFetchService fetch,
         MonitoringEvaluationService evaluation, KnownContainerService known, PollScheduler scheduler,
-        IOptions<MonitoringSettings> settings, ILogger<AgentPollService> logger)
+        LiveUpdateService live, IOptions<MonitoringSettings> settings, ILogger<AgentPollService> logger)
     {
+        _live = live;
         _agents = agents;
         _snapshots = snapshots;
         _fetch = fetch;
@@ -88,7 +90,10 @@ public class AgentPollService
             return null;
         try
         {
-            return await PollAgent(agent, previous, ct);
+            var snapshot = await PollAgent(agent, previous, ct);
+            // every attempt changes what the pages show (status, "fetched x s ago"), successful or not
+            await _live.Publish(LiveUpdateService.Agents, LiveUpdateService.Agent(agent.Id));
+            return snapshot;
         }
         finally
         {
