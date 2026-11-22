@@ -1,21 +1,21 @@
 @page
 @model Monitorer.Pages.LiveChecks.IndexModel
 @{
-    ViewData["Title"] = "Live-Checks";
+    ViewData["Title"] = L["nav.liveChecks"];
     ViewData["ShowActions"] = true;
 }
 <div data-live="livechecks">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h1 class="h3 mb-0">Live-Checks</h1>
+        <h1 class="h3 mb-0">@L["nav.liveChecks"]</h1>
         @if (User.IsAdmin())
         {
-            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>Live-Check hinzufügen</a>
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>@L["liveChecks.add"]</a>
         }
     </div>
-    <p class="text-body-secondary">Direkte Erreichbarkeitsprüfung von Webdiensten durch den Monitorer: HTTP(S), WebSocket (WS/WSS) und MQTT(S).</p>
+    <p class="text-body-secondary">@L["liveChecks.intro"]</p>
     @if (Model.Checks.Count == 0)
     {
-        <div class="alert alert-info">Noch keine Live-Checks angelegt.</div>
+        <div class="alert alert-info">@L["liveChecks.empty"]</div>
     }
     else
     {

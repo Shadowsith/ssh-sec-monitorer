@@ -5,7 +5,7 @@
             <div class="fw-semibold">@Model.Title</div>
             <div class="small text-body-secondary">@Model.Description</div>
         </div>
-        <a asp-page="@Model.LinkPage" class="small text-nowrap">Details <i class="bi bi-arrow-right"></i></a>
+        <a asp-page="@Model.LinkPage" class="small text-nowrap">@L["common.details"] <i class="bi bi-arrow-right"></i></a>
     </div>
     <div class="card-body">
         <div id="@Model.ChartId" class="chart-box" role="img" aria-label="@Model.Title"></div>

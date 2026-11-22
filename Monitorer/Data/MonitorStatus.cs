@@ -26,6 +26,13 @@ public static class MonitorStatus
         _ => 1
     };
 
+    /// <summary>Translation key of the status text, e.g. "status.ok" (also used by charts.js).</summary>
+    public static string TextKey(string? status) => status switch
+    {
+        Ok or Up or Degraded or Warning or Critical or Unreachable or Down or "Disabled" => "status." + char.ToLowerInvariant(status[0]) + status[1..],
+        _ => "status.unknown"
+    };
+
     /// <summary>Bootstrap color class for badges.</summary>
     public static string CssClass(string? status) => status switch
     {

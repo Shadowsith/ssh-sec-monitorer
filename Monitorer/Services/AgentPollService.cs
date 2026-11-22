@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Db;
@@ -18,12 +19,14 @@ public class AgentPollService
     private readonly PollScheduler _scheduler;
     private readonly LiveUpdateService _live;
     private readonly MonitoringSettings _settings;
+    private readonly IStringLocalizer _l;
     private readonly ILogger<AgentPollService> _logger;
 
     public AgentPollService(AgentRepository agents, AgentSnapshotRepository snapshots, MonitoringFetchService fetch,
         MonitoringEvaluationService evaluation, KnownContainerService known, PollScheduler scheduler,
-        LiveUpdateService live, IOptions<MonitoringSettings> settings, ILogger<AgentPollService> logger)
+        LiveUpdateService live, IOptions<MonitoringSettings> settings, IStringLocalizer l, ILogger<AgentPollService> logger)
     {
+        _l = l;
         _live = live;
         _agents = agents;
         _snapshots = snapshots;
@@ -74,10 +77,10 @@ public class AgentPollService
     {
         var agent = await _agents.SelectById(id);
         if (agent is null)
-            return ServiceResult<AgentSnapshotDb>.NotFound($"Agent {id} nicht gefunden.");
+            return ServiceResult<AgentSnapshotDb>.NotFound(_l["agents.notFound", id].Value);
         var snapshot = await PollGuarded(agent, await _snapshots.SelectByAgentId(id), ct);
         if (snapshot is null)
-            return ServiceResult<AgentSnapshotDb>.Locked("Für diesen Agent läuft gerade schon ein Abruf.");
+            return ServiceResult<AgentSnapshotDb>.Locked(_l["agents.pollRunning"].Value);
         snapshot.Payload = null;
         return ServiceResult<AgentSnapshotDb>.Ok(snapshot);
     }
@@ -148,16 +151,16 @@ public class AgentPollService
         {
             // SSH works, the VM is up - the agent did not write its file
             return await StoreFailure(agent, previous, now, MonitorStatus.Critical,
-                $"monitoring.json nicht gefunden: {agent.RemotePath} (läuft der Agent? Bei chroot den Pfad relativ zum Chroot angeben).");
+                _l["agents.fileNotFound", agent.RemotePath ?? ""].Value);
         }
         catch (Renci.SshNet.Common.SftpPermissionDeniedException) when (!ct.IsCancellationRequested)
         {
             return await StoreFailure(agent, previous, now, MonitorStatus.Critical,
-                $"Keine Leserechte auf {agent.RemotePath} für den SSH-Benutzer.");
+                _l["agents.fileNoPermission", agent.RemotePath ?? ""].Value);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            _logger.LogWarning("Agent {Agent} ({Target}) not reachable: {Message}", agent.Name, agent.Target(), ex.Message);
+            _logger.LogWarning("Agent {Agent} ({Target}) not reachable: {Message}", agent.Name, agent.Target(_l), ex.Message);
             return await StoreFailure(agent, previous, now, MonitorStatus.Unreachable, ex.Message);
         }
 

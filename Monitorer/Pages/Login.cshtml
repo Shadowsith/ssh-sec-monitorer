@@ -1,14 +1,14 @@
 @page
 @model LoginModel
 @{
-    ViewData["Title"] = "Anmelden";
+    ViewData["Title"] = L["login.title"];
 }
 <div class="card shadow-sm card-narrow w-100">
     <div class="card-body p-4 p-md-5">
         <div class="text-center mb-4">
             <i class="bi bi-shield-lock-fill display-5 text-info"></i>
             <h1 class="h4 mt-2 mb-0">SshSecMonitorer</h1>
-            <p class="text-body-secondary small mb-0">@(Model.LdapEnabled ? "Anmeldung mit Domänenkonto oder lokalem Konto" : "Bitte anmelden")</p>
+            <p class="text-body-secondary small mb-0">@(Model.LdapEnabled ? L["login.hintLdap"] : L["login.hint"])</p>
         </div>
         <partial name="_Messages" />
         @if (Model.ErrorMessage is not null)
@@ -18,14 +18,14 @@
         <form method="post" class="d-flex flex-column gap-3">
             <input type="hidden" asp-for="ReturnUrl" />
             <div class="form-floating">
-                <input asp-for="Input.UserName" class="form-control" placeholder="Benutzername" autocomplete="username" autofocus required />
-                <label asp-for="Input.UserName">Benutzername</label>
+                <input asp-for="Input.UserName" class="form-control" placeholder="@L["login.userName"]" autocomplete="username" autofocus required />
+                <label asp-for="Input.UserName">@L["login.userName"]</label>
             </div>
             <div class="form-floating">
-                <input asp-for="Input.Password" type="password" class="form-control" placeholder="Passwort" autocomplete="current-password" required />
-                <label asp-for="Input.Password">Passwort</label>
+                <input asp-for="Input.Password" type="password" class="form-control" placeholder="@L["login.password"]" autocomplete="current-password" required />
+                <label asp-for="Input.Password">@L["login.password"]</label>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-right me-1"></i>Anmelden</button>
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-right me-1"></i>@L["login.submit"]</button>
         </form>
     </div>
 </div>

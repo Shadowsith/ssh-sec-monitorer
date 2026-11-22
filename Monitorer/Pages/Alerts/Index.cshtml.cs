@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
@@ -14,9 +15,11 @@ public class IndexModel : PageModel
 {
     private readonly AlertRuleService _rules;
     private readonly AlertEngineService _engine;
+    private readonly IStringLocalizer _l;
 
-    public IndexModel(AlertRuleService rules, AlertEngineService engine, IOptions<MailSettings> mail)
+    public IndexModel(AlertRuleService rules, AlertEngineService engine, IOptions<MailSettings> mail, IStringLocalizer l)
     {
+        _l = l;
         _rules = rules;
         _engine = engine;
         Mail = mail.Value;
@@ -40,7 +43,7 @@ public class IndexModel : PageModel
     {
         var result = await _rules.UpdateEnabled(id, enabled);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
-            ? $"Regel \"{result.Value!.Name}\" {(enabled ? "aktiviert" : "deaktiviert")}."
+            ? _l[enabled ? "alerts.ruleEnabledMessage" : "alerts.ruleDisabledMessage", result.Value!.Name].Value
             : result.Message;
         return RedirectToPage();
     }
@@ -48,7 +51,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostTestAsync(int id, CancellationToken ct)
     {
         var result = await _engine.SendTest(id, ct);
-        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Testmail gesendet." : result.Message;
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? _l["alerts.testSent"].Value : result.Message;
         return RedirectToPage();
     }
 }

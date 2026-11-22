@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Db;
 
@@ -8,7 +9,7 @@ public static class AgentExtensions
 {
     public static bool IsLocal(this AgentDb agent) => agent.ConnectionType == AgentConnectionTypes.Local;
 
-    /// <summary>"vm-web-01.intern:22" or "lokal: local" for the UI and messages.</summary>
-    public static string Target(this AgentDb agent) =>
-        agent.IsLocal() ? $"lokal: {agent.LocalDir}" : $"{agent.Host}:{agent.Port}";
+    /// <summary>"vm-web-01.intern:22" or "local: local" for the UI and messages.</summary>
+    public static string Target(this AgentDb agent, IStringLocalizer l) =>
+        agent.IsLocal() ? l["agents.localTarget", agent.LocalDir ?? ""].Value : $"{agent.Host}:{agent.Port}";
 }

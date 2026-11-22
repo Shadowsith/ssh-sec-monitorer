@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
 using Monitorer.Extensions;
@@ -14,15 +15,17 @@ public class EditModel : PageModel
     private readonly SshCredentialService _credentials;
     private readonly AgentService _agents;
     private readonly VmSetupScriptService _script;
+    private readonly IStringLocalizer _l;
 
-    public EditModel(SshCredentialService credentials, AgentService agents, VmSetupScriptService script)
+    public EditModel(SshCredentialService credentials, AgentService agents, VmSetupScriptService script, IStringLocalizer l)
     {
+        _l = l;
         _credentials = credentials;
         _agents = agents;
         _script = script;
     }
 
-    /// <summary>Setup scripts for the read-only SFTP user per system (card "Nutzer auf VM anlegen").</summary>
+    /// <summary>Setup scripts for the read-only SFTP user per system (card "Create user on VM").</summary>
     public List<(VmSetupScriptService.Variant Variant, string Script)> SetupScripts { get; private set; } = [];
 
     /// <summary>Agents for the test target suggestions (those using this credential first).</summary>
@@ -60,7 +63,7 @@ public class EditModel : PageModel
             await LoadTestTargets();
             return Page();
         }
-        TempData["Success"] = $"SSH-Zugang \"{result.Value!.Name}\" gespeichert.";
+        TempData["Success"] = _l["credentials.saved", result.Value!.Name].Value;
         return RedirectToPage("Index");
     }
 
@@ -68,7 +71,7 @@ public class EditModel : PageModel
     {
         var result = await _credentials.Delete(Id ?? 0);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"SSH-Zugang \"{result.Value!.Name}\" gelöscht." : result.Message;
+            result.IsSuccess ? _l["credentials.deleted", result.Value!.Name].Value : result.Message;
         return result.IsSuccess ? RedirectToPage("Index") : RedirectToPage("Edit", new { id = Id });
     }
 

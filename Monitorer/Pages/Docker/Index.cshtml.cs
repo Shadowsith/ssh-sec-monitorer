@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data.Dto;
 using Monitorer.Extensions;
 using Monitorer.Services;
@@ -11,9 +12,11 @@ public class IndexModel : PageModel
 {
     private readonly DockerOverviewService _docker;
     private readonly KnownContainerService _known;
+    private readonly IStringLocalizer _l;
 
-    public IndexModel(DockerOverviewService docker, KnownContainerService known)
+    public IndexModel(DockerOverviewService docker, KnownContainerService known, IStringLocalizer l)
     {
+        _l = l;
         _docker = docker;
         _known = known;
     }
@@ -35,7 +38,7 @@ public class IndexModel : PageModel
             return Forbid();
         var result = await _known.Delete(knownId);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"Container \"{result.Value!.Name}\" entfernt." : result.Message;
+            result.IsSuccess ? _l["containers.forgotten", result.Value!.Name].Value : result.Message;
         return RedirectToPage();
     }
 
@@ -45,7 +48,7 @@ public class IndexModel : PageModel
         if (!User.IsAdmin())
             return Forbid();
         var result = await _known.DeleteMissing(agentId);
-        TempData["Success"] = $"{result.Value?.Count ?? 0} nicht mehr vorhandene Container entfernt.";
+        TempData["Success"] = _l["docker.forgotAll", result.Value?.Count ?? 0].Value;
         return RedirectToPage();
     }
 }

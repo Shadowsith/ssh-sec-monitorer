@@ -46,6 +46,8 @@ services:
       Setup__AdminUserName: ${ADMIN_USERNAME:-}
       Setup__AdminPassword: ${ADMIN_PASSWORD:-}
       Swagger__Enabled: ${SWAGGER_ENABLED:-false}
+      # UI language when the browser asks for none of en / de, and for alert mails: en | de
+      Localization__DefaultLanguage: ${DEFAULT_LANGUAGE:-en}
       # --- SMTP warning mails ---
       Mail__Enabled: ${MAIL_ENABLED:-false}
       Mail__Host: ${MAIL_HOST:-}

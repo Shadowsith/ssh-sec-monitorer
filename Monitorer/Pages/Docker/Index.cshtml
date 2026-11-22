@@ -8,21 +8,21 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <div>
             <h1 class="h3 mb-0">Docker</h1>
-            <div class="small text-body-secondary">@Model.Hosts.Count VMs · @Model.RunningTotal von @Model.ContainerTotal Containern laufen@(Model.MissingTotal > 0 ? $" · {Model.MissingTotal} nicht mehr vorhanden" : "")</div>
+            <div class="small text-body-secondary">@L["docker.summary", Model.Hosts.Count, Model.RunningTotal, Model.ContainerTotal]@(Model.MissingTotal > 0 ? " · " + L["docker.summaryMissing", Model.MissingTotal] : "")</div>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
             <div class="form-check form-switch me-2 mb-0">
                 <input class="form-check-input" type="checkbox" role="switch" id="only-running" data-container-filter data-remember="ssm-docker-only-running" />
-                <label class="form-check-label" for="only-running">Nur laufende Container</label>
+                <label class="form-check-label" for="only-running">@L["docker.onlyRunning"]</label>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="show" data-target="#docker-hosts">Alle aufklappen</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="hide" data-target="#docker-hosts">Alle zuklappen</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="show" data-target="#docker-hosts">@L["docker.expandAll"]</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-accordion-all="hide" data-target="#docker-hosts">@L["docker.collapseAll"]</button>
         </div>
     </div>
 
     @if (Model.Hosts.Count == 0)
     {
-        <div class="alert alert-info">Noch keine Agents angelegt.</div>
+        <div class="alert alert-info">@L["agents.empty"]</div>
     }
 
     <div class="accordion shadow-sm" id="docker-hosts" data-remember-collapse="ssm-docker-open">
@@ -35,19 +35,19 @@
                             data-bs-target="#@collapseId" aria-expanded="@(host.HasProblems ? "true" : "false")" aria-controls="@collapseId">
                         <span class="d-flex flex-wrap align-items-center gap-2 gap-md-3 w-100 me-3">
                             <span class="fw-semibold">@host.Agent.Name</span>
-                            <span class="small text-body-secondary">@(host.Agent.IsLocal() ? "lokal" : host.Agent.Host)</span>
+                            <span class="small text-body-secondary">@(host.Agent.IsLocal() ? L["agents.local"] : host.Agent.Host)</span>
                             <partial name="_StatusBadge" model="host.Status" />
                             <span class="ms-md-auto d-flex flex-wrap gap-3 small text-body-secondary">
-                                <span><i class="bi bi-box me-1"></i>@(host.Docker is null ? "keine Daten" : $"{host.RunningCount} / {host.TotalCount} laufen")</span>
+                                <span><i class="bi bi-box me-1"></i>@(host.Docker is null ? L["docker.noDataShort"] : L["docker.runningOf", host.RunningCount, host.TotalCount])</span>
                                 @if (host.MissingContainers.Count > 0)
                                 {
-                                    <span class="text-body-emphasis"><i class="bi bi-dash-circle-dotted me-1"></i>@host.MissingContainers.Count fehlen</span>
+                                    <span class="text-body-emphasis"><i class="bi bi-dash-circle-dotted me-1"></i>@L["docker.missingCount", host.MissingContainers.Count]</span>
                                 }
                                 @if (host.Docker?.Engine?.GetValueOrDefault("version") is string engineVersion)
                                 {
                                     <span>Docker @engineVersion</span>
                                 }
-                                <span class="@(host.ErrorCount > 0 ? "text-danger fw-semibold" : "")">@host.ErrorCount Fehler · @host.WarningCount Warn.</span>
+                                <span class="@(host.ErrorCount > 0 ? "text-danger fw-semibold" : "")">@L["docker.logCounts", host.ErrorCount, host.WarningCount]</span>
                             </span>
                         </span>
                     </button>
@@ -57,16 +57,16 @@
                         @if (host.Snapshot?.Status == MonitorStatus.Unreachable)
                         {
                             <div class="alert alert-warning py-2">
-                                Agent nicht erreichbar (@((host.Snapshot.FetchedAt).ToAgeString()) zuletzt abgerufen) – angezeigt wird der letzte bekannte Stand.
+                                @L["docker.unreachable", (host.Snapshot.FetchedAt).ToAgeString(L)]
                             </div>
                         }
                         @if (host.Docker is { Available: false } docker)
                         {
-                            <div class="alert alert-warning py-2">Docker nicht erreichbar: @docker.Error</div>
+                            <div class="alert alert-warning py-2">@L["containers.dockerUnavailable", docker.Error ?? ""]</div>
                         }
                         @if ((host.Docker is null || host.Docker.Containers.Count == 0) && host.MissingContainers.Count == 0)
                         {
-                            <div class="small text-body-secondary">@(host.Agent.Enabled ? "Keine Container-Daten vorhanden." : "Agent deaktiviert – keine Daten.")</div>
+                            <div class="small text-body-secondary">@(host.Agent.Enabled ? L["docker.noContainerData"] : L["docker.agentDisabled"])</div>
                         }
                         else
                         {
@@ -84,12 +84,12 @@
                             {
                                 <form method="post" asp-page-handler="ForgetMissing" asp-route-agentId="@host.Agent.Id" class="mt-3">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                            data-confirm="Alle @host.MissingContainers.Count nicht mehr vorhandenen Container von @host.Agent.Name entfernen?">
-                                        <i class="bi bi-trash me-1"></i>Alle nicht mehr vorhandenen entfernen
+                                            data-confirm="@L["docker.forgetAllConfirm", host.MissingContainers.Count, host.Agent.Name]">
+                                        <i class="bi bi-trash me-1"></i>@L["docker.forgetAll"]
                                     </button>
                                 </form>
                             }
-                            <div class="small text-body-secondary mt-3 d-none" data-container-empty>Keine laufenden Container.</div>
+                            <div class="small text-body-secondary mt-3 d-none" data-container-empty>@L["docker.noRunning"]</div>
                         }
                     </div>
                 </div>

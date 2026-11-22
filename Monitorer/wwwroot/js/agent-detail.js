@@ -8,7 +8,7 @@ class AgentDetailCharts {
         SsmCharts.create('chart-cpu-mem', () => AgentDetailCharts.lines([
             { name: 'CPU', points: host.cpu_percent },
             { name: 'RAM', points: host.memory_percent }
-        ], v => `${Number(v).toLocaleString('de-DE')} %`, { min: 0, max: 100, axisLabel: { formatter: '{value} %' } }));
+        ], v => `${I18n.number(v)} %`, { min: 0, max: 100, axisLabel: { formatter: '{value} %' } }));
 
         SsmCharts.create('chart-net', () => AgentDetailCharts.lines([
             { name: 'RX', points: host.net_rx_bps, area: true },
@@ -18,7 +18,7 @@ class AgentDetailCharts {
 
     static lines(series, valueFormatter, yAxis) {
         const available = series.filter(s => Array.isArray(s.points) && s.points.length > 0);
-        if (available.length === 0) return SsmCharts.empty('Keine Verlaufsdaten');
+        if (available.length === 0) return SsmCharts.empty(I18n.t('js.chart.noHistory'));
         return {
             tooltip: { trigger: 'axis', valueFormatter },
             legend: { top: 0 },

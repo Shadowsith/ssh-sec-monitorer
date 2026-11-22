@@ -1,3 +1,4 @@
+using Configurator.Localization;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -34,7 +35,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _configName = "";
     [ObservableProperty] private string _configDescription = "";
     [ObservableProperty] private string _yamlPreview = "";
-    [ObservableProperty] private string _statusMessage = "Bereit.";
+    [ObservableProperty] private string _statusMessage = Texts.Get("status.ready");
     [ObservableProperty] private string _validationMessage = "";
 
     // list settings as text
@@ -53,7 +54,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         SelectedConfig = null;
         LoadSettings(new AgentSettings(), "", "");
-        StatusMessage = "Neue Konfiguration – noch nicht gespeichert.";
+        StatusMessage = Texts.Get("status.new");
     }
 
     [RelayCommand]
@@ -63,11 +64,11 @@ public partial class MainWindowViewModel : ViewModelBase
         var result = await _configs.Save(SelectedConfig?.Id, name, ConfigDescription, Settings);
         if (!result.IsSuccess)
         {
-            StatusMessage = "Nicht gespeichert: " + result.Message;
+            StatusMessage = Texts.Get("status.notSaved", result.Message ?? "");
             return;
         }
         await ReloadList(result.Value!.Id);
-        StatusMessage = $"\"{result.Value.Name}\" gespeichert.";
+        StatusMessage = Texts.Get("status.saved", result.Value.Name);
     }
 
     [RelayCommand]
@@ -75,13 +76,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (SelectedConfig is null)
         {
-            StatusMessage = "Bitte zuerst eine gespeicherte Konfiguration auswählen.";
+            StatusMessage = Texts.Get("status.selectFirst");
             return;
         }
         var result = await _configs.Duplicate(SelectedConfig);
         if (result.IsSuccess)
             await ReloadList(result.Value!.Id);
-        StatusMessage = result.IsSuccess ? $"Kopie \"{result.Value!.Name}\" angelegt." : result.Message!;
+        StatusMessage = result.IsSuccess ? Texts.Get("status.duplicated", result.Value!.Name) : result.Message!;
     }
 
     [RelayCommand]
@@ -93,7 +94,7 @@ public partial class MainWindowViewModel : ViewModelBase
         await _configs.Delete(SelectedConfig.Id);
         await ReloadList(null);
         New();
-        StatusMessage = $"\"{name}\" gelöscht.";
+        StatusMessage = Texts.Get("status.deleted", name);
     }
 
     /// <summary>Loads a pasted config.yml into the editor (as a new, unsaved configuration).</summary>
@@ -101,19 +102,19 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(yaml))
         {
-            StatusMessage = "Die Zwischenablage enthält keinen Text.";
+            StatusMessage = Texts.Get("status.clipboardEmpty");
             return;
         }
         try
         {
             var settings = _yaml.FromYaml(yaml);
             SelectedConfig = null;
-            LoadSettings(settings, settings.Agent.Name, "Importiert");
-            StatusMessage = "config.yml importiert – zum Übernehmen speichern.";
+            LoadSettings(settings, settings.Agent.Name, Texts.Get("import.description"));
+            StatusMessage = Texts.Get("status.imported");
         }
         catch (YamlException ex)
         {
-            StatusMessage = "Import fehlgeschlagen: " + ex.Message;
+            StatusMessage = Texts.Get("status.importFailed", ex.Message);
         }
     }
 
@@ -125,7 +126,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (value is not null && !_loading)
         {
             LoadSettings(_configs.ReadSettings(value), value.Name, value.Description);
-            StatusMessage = $"\"{value.Name}\" geladen.";
+            StatusMessage = Texts.Get("status.loaded", value.Name);
         }
     }
 

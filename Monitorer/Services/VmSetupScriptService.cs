@@ -12,9 +12,9 @@ public class VmSetupScriptService
 
     public static readonly IReadOnlyList<Variant> Variants =
     [
-        new("ubuntu", "Ubuntu (ab 22.04)", "setup-sftp-user-ubuntu.sh"),
+        new("ubuntu", "Ubuntu ≥ 22.04", "setup-sftp-user-ubuntu.sh"),
         new("arch", "Arch Linux / Manjaro", "setup-sftp-user-arch.sh"),
-        new("raspios", "Raspberry Pi OS / Raspbian (ab 11)", "setup-sftp-user-raspios.sh")
+        new("raspios", "Raspberry Pi OS / Raspbian ≥ 11", "setup-sftp-user-raspios.sh")
     ];
 
     private static readonly string ScriptDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "Scripts");

@@ -5,7 +5,8 @@ namespace Monitorer.Data.Dto;
 /// <summary>Alert rule plus display information for the UI / API.</summary>
 public class AlertRuleDto : AlertRuleDb
 {
-    public string ScenarioName => AlertScenarios.DisplayName(Scenario);
+    /// <summary>Display name of the scenario in the request language (set by AlertRuleService).</summary>
+    public string ScenarioName { get; set; } = "";
     public string ScopeText { get; set; } = "";
     public int ActiveCount { get; set; }
 

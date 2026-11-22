@@ -1,3 +1,4 @@
+using Configurator.Localization;
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -18,7 +19,7 @@ public partial class MainWindow : Window
         if (ViewModel is not { } vm || Clipboard is null)
             return;
         await Clipboard.SetTextAsync(vm.YamlPreview);
-        vm.StatusMessage = "config.yml in die Zwischenablage kopiert.";
+        vm.StatusMessage = Texts.Get("status.copied");
     }
 
     private async void OnImportYaml(object? sender, RoutedEventArgs e)
@@ -34,7 +35,7 @@ public partial class MainWindow : Window
             return;
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "config.yml speichern",
+            Title = Texts.Get("dialog.exportTitle"),
             SuggestedFileName = "config.yml",
             DefaultExtension = "yml"
         });
@@ -43,6 +44,6 @@ public partial class MainWindow : Window
         await using var stream = await file.OpenWriteAsync();
         await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
         await writer.WriteAsync(vm.YamlPreview.ReplaceLineEndings("\n"));
-        vm.StatusMessage = $"Gespeichert: {file.Name}";
+        vm.StatusMessage = Texts.Get("status.exported", file.Name);
     }
 }

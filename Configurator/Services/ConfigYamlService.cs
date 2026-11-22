@@ -1,3 +1,4 @@
+using Configurator.Localization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Configurator.Data.Model;
@@ -41,9 +42,9 @@ public class ConfigYamlService
     {
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(s.Agent.Name))
-            errors.Add("agent.name darf nicht leer sein.");
+            errors.Add(Texts.Get("validation.agentName"));
         if (string.IsNullOrWhiteSpace(s.Agent.OutputFile) || !s.Agent.OutputFile.StartsWith('/'))
-            errors.Add("agent.output_file muss ein absoluter Pfad sein.");
+            errors.Add(Texts.Get("validation.outputFile"));
         foreach (var (key, value) in new[]
                  {
                      ("agent.write_interval", s.Agent.WriteInterval),
@@ -53,12 +54,12 @@ public class ConfigYamlService
                  })
         {
             if (value < 1)
-                errors.Add($"{key} muss mindestens 1 sein.");
+                errors.Add(Texts.Get("validation.min1", key));
         }
         if (s.Host.HistoryRetention < 0 || s.Docker.HistoryRetention < 0)
-            errors.Add("history_retention darf nicht negativ sein.");
+            errors.Add(Texts.Get("validation.retention"));
         if (!Regex.IsMatch(s.Agent.OutputFileMode ?? "", "^0?[0-7]{3}$"))
-            errors.Add("agent.output_file_mode muss eine Oktalzahl wie 0644 sein.");
+            errors.Add(Texts.Get("validation.fileMode"));
         foreach (var (key, pattern) in new[]
                  {
                      ("docker.logs.error_pattern", s.Docker.Logs.ErrorPattern),
@@ -72,7 +73,7 @@ public class ConfigYamlService
             }
             catch (ArgumentException ex)
             {
-                errors.Add($"{key} ist kein gültiger regulärer Ausdruck: {ex.Message}");
+                errors.Add(Texts.Get("validation.regex", key, ex.Message));
             }
         }
         return errors;

@@ -25,25 +25,9 @@ public static class AlertScenarios
     public static bool UsesLiveCheck(string scenario) => scenario == LiveCheckDown;
     public static bool UsesContainerPattern(string scenario) => scenario is ContainerDown or ContainerMissing;
 
-    public static string DisplayName(string scenario) => scenario switch
-    {
-        AgentUnreachable => "VM nicht erreichbar",
-        AgentStale => "Agent meldet sich nicht mehr",
-        AgentStatus => "Grenzwerte / Agent-Status",
-        LiveCheckDown => "Live-Dienst nicht erreichbar",
-        ContainerDown => "Container gestoppt / unhealthy",
-        ContainerMissing => "Container verschwunden",
-        _ => scenario
-    };
+    /// <summary>Translation key of the display name, e.g. "scenario.agentUnreachable".</summary>
+    public static string NameKey(string scenario) => "scenario." + char.ToLowerInvariant(scenario[0]) + scenario[1..];
 
-    public static string Description(string scenario) => scenario switch
-    {
-        AgentUnreachable => "Der Monitorer erreicht die VM nicht per SSH (VM aus, Netzwerk, SSH-Dienst).",
-        AgentStale => "Die monitoring.json wurde länger als die eingestellte Zeit nicht aktualisiert – der Agent läuft nicht oder hängt. Nur bei erreichbarer VM.",
-        AgentStatus => "Der Agent-Status ist Warnung oder Kritisch, z. B. CPU, RAM oder Festplatte über dem Grenzwert. Ruht, solange die VM nicht erreichbar oder die Daten veraltet sind.",
-        LiveCheckDown => "Ein HTTP(S)-, WS(S)- oder MQTT(S)-Dienst antwortet nicht oder mit falschem Statuscode.",
-        ContainerDown => "Ein Container läuft nicht mehr, startet ständig neu, ist dead oder unhealthy. Ruht, solange die VM nicht erreichbar oder die Daten veraltet sind.",
-        ContainerMissing => "Ein Container, der früher da war, ist auf der VM nicht mehr vorhanden. Ruht, solange die VM nicht erreichbar oder die Daten veraltet sind.",
-        _ => ""
-    };
+    /// <summary>Translation key of the explanation shown in the rule editor.</summary>
+    public static string DescriptionKey(string scenario) => NameKey(scenario) + ".hint";
 }

@@ -4,8 +4,13 @@ namespace Monitorer.Services;
 public class LimitedMemoryStream : MemoryStream
 {
     private readonly long _maxBytes;
+    private readonly string _tooLargeMessage;
 
-    public LimitedMemoryStream(long maxBytes) => _maxBytes = maxBytes;
+    public LimitedMemoryStream(long maxBytes, string tooLargeMessage)
+    {
+        _maxBytes = maxBytes;
+        _tooLargeMessage = tooLargeMessage;
+    }
 
     public override void Write(byte[] buffer, int offset, int count)
     {
@@ -28,6 +33,6 @@ public class LimitedMemoryStream : MemoryStream
     private void EnsureCapacityLeft(int count)
     {
         if (Length + count > _maxBytes)
-            throw new InvalidOperationException($"Datei ist größer als {_maxBytes} Bytes.");
+            throw new InvalidOperationException(_tooLargeMessage);
     }
 }

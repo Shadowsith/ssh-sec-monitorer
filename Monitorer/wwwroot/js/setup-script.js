@@ -1,4 +1,4 @@
-// Card "Nutzer auf VM anlegen": fills the placeholders of setup-sftp-user.sh in the browser.
+// Card "Create user on VM": fills the placeholders of setup-sftp-user.sh in the browser.
 // Values are validated strictly, because they end up inside double-quoted bash strings on the VM.
 class SetupScriptCard {
     static PLACEHOLDERS = {
@@ -42,7 +42,7 @@ class SetupScriptCard {
         try { localStorage.setItem('ssm-setup-variant', this.variant.value); } catch (e) { /* ignore */ }
         if (this.applied) this.apply();
         else this.pre.textContent = this.template;
-        if (userChange && !this.applied) this.say(`Skript für ${this.variant.selectedOptions[0].textContent}.`, true);
+        if (userChange && !this.applied) this.say(I18n.t('js.setupScript.variant', this.variant.selectedOptions[0].textContent), true);
     }
 
     field(name) {
@@ -52,11 +52,11 @@ class SetupScriptCard {
     /** Returns an error text or null. */
     static validate(dir, key, ip) {
         if (!/^\/[A-Za-z0-9._\/-]+$/.test(dir) || dir.includes('..') || dir.replace(/\/+$/, '').split('/').length < 3)
-            return 'Agent-Datenordner: absoluter Pfad mit mindestens zwei Ebenen, nur Buchstaben, Ziffern, . _ - / (z. B. /opt/sshsecmonitorer/agent).';
+            return I18n.t('js.setupScript.invalidDir');
         if (!/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+\/=]+( [A-Za-z0-9._@+-]*)?$/.test(key))
-            return 'Öffentlicher Schlüssel: eine Zeile wie „ssh-ed25519 AAAA… kommentar“.';
+            return I18n.t('js.setupScript.invalidKey');
         if (ip && !/^[0-9A-Fa-f.:\/,*]+$/.test(ip))
-            return 'IP des Monitorers: nur IP-Adressen / Netze, mehrere mit Komma.';
+            return I18n.t('js.setupScript.invalidIp');
         return null;
     }
 
@@ -74,13 +74,13 @@ class SetupScriptCard {
             .replace(`MONITORER_IP="${P.ip}"`, `MONITORER_IP="${ip}"`);
         this.applied = true;
         const path = '/' + dir.split('/').pop() + '/monitoring.json';
-        this.say(`Übernommen. Pfad für den Agent im Monitorer: ${path} (relativ zum Chroot).`, true);
+        this.say(I18n.t('js.setupScript.applied', path), true);
     }
 
     reset() {
         this.applied = false;
         this.pre.textContent = this.template;
-        this.say('Platzhalter wiederhergestellt.', true);
+        this.say(I18n.t('js.setupScript.reset'), true);
     }
 
     async derive(manual) {
@@ -99,12 +99,12 @@ class SetupScriptCard {
                 })
             });
             const text = await response.text();
-            if (!response.ok) return manual && this.say(text || `Fehler ${response.status}`, false);
+            if (!response.ok) return manual && this.say(text || I18n.t('js.error.status', response.status), false);
             // plain text from the API (string result); tolerate a JSON string as well
             this.field('key').value = text.startsWith('"') ? JSON.parse(text) : text.trim();
-            if (manual) this.say('Öffentlicher Schlüssel abgeleitet – jetzt „Übernehmen“.', true);
+            if (manual) this.say(I18n.t('js.setupScript.derived'), true);
         } catch (e) {
-            if (manual) this.say('Der Monitorer ist nicht erreichbar.', false);
+            if (manual) this.say(I18n.t('js.error.unreachable'), false);
         }
     }
 

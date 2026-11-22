@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Monitorer.Data.Db;
 using Monitorer.Data.Dto;
 using Monitorer.Data.Result;
@@ -16,11 +17,13 @@ public class AlertEngineService
     private readonly AlertConditionService _conditions;
     private readonly AlertService _mail;
     private readonly LiveUpdateService _live;
+    private readonly IStringLocalizer _l;
     private readonly ILogger<AlertEngineService> _logger;
 
     public AlertEngineService(AlertRuleRepository rules, AlertStateRepository states, AlertConditionService conditions,
-        AlertService mail, LiveUpdateService live, ILogger<AlertEngineService> logger)
+        AlertService mail, LiveUpdateService live, IStringLocalizer l, ILogger<AlertEngineService> logger)
     {
+        _l = l;
         _live = live;
         _rules = rules;
         _states = states;
@@ -96,23 +99,23 @@ public class AlertEngineService
     {
         var rule = await _rules.SelectById(ruleId);
         if (rule is null)
-            return ServiceResult<bool>.NotFound($"Alarm-Regel {ruleId} nicht gefunden.");
+            return ServiceResult<bool>.NotFound(_l["alerts.ruleNotFound", ruleId].Value);
         if (!_mail.MailEnabled)
-            return ServiceResult<bool>.NotAllowed("Der Mailversand ist nicht aktiviert (Mail:Enabled / Mail:Host).");
+            return ServiceResult<bool>.NotAllowed(_l["alerts.mailNotEnabled"].Value);
         if (_mail.RecipientsFor(rule).Count == 0)
-            return ServiceResult<bool>.InvalidValue("Keine Empfänger: weder in der Regel noch in Mail:Recipients.");
+            return ServiceResult<bool>.InvalidValue(_l["alerts.noRecipients"].Value);
 
         var state = new AlertStateDb
         {
             RuleId = rule.Id,
-            SubjectName = "Testnachricht",
-            Message = "Dies ist eine Testnachricht. Wenn sie ankommt, funktioniert der Mailversand für diese Regel.",
+            SubjectName = _l["alerts.testSubject"].Value,
+            Message = _l["alerts.testMessage"].Value,
             FirstDetectedAt = DateTime.UtcNow
         };
         var sent = await _mail.Send(rule, state, AlertService.MailKind.Test, ct);
         return sent
             ? ServiceResult<bool>.Ok(true)
-            : ServiceResult<bool>.Conflict("Die Testmail konnte nicht gesendet werden – Details im Log.");
+            : ServiceResult<bool>.Conflict(_l["alerts.testFailed"].Value);
     }
 
     /// <summary>True if a mail went out.</summary>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
@@ -17,11 +18,13 @@ public class SetupService
     private readonly SetupState _state;
     private readonly SetupSettings _setup;
     private readonly LdapSettings _ldap;
+    private readonly IStringLocalizer _l;
     private readonly ILogger<SetupService> _logger;
 
     public SetupService(UserRepository users, UserService userService, SetupState state,
-        IOptions<SetupSettings> setup, IOptions<LdapSettings> ldap, ILogger<SetupService> logger)
+        IOptions<SetupSettings> setup, IOptions<LdapSettings> ldap, IStringLocalizer l, ILogger<SetupService> logger)
     {
+        _l = l;
         _users = users;
         _userService = userService;
         _state = state;
@@ -45,9 +48,9 @@ public class SetupService
     public async Task<ServiceResult<UserDto>> CreateInitialAdmin(SetupAdminDto dto)
     {
         if (!await IsSetupRequired())
-            return ServiceResult<UserDto>.NotAllowed("Die Ersteinrichtung ist bereits abgeschlossen.");
+            return ServiceResult<UserDto>.NotAllowed(_l["setup.alreadyDone"].Value);
         if (dto.Password != dto.PasswordRepeat)
-            return ServiceResult<UserDto>.InvalidValue("Die Passwörter stimmen nicht überein.");
+            return ServiceResult<UserDto>.InvalidValue(_l["setup.passwordMismatch"].Value);
 
         var result = await _userService.Create(new UserCreateDto
         {

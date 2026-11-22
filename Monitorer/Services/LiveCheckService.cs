@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Db;
 using Monitorer.Data.Dto;
@@ -11,9 +12,11 @@ public class LiveCheckService
 {
     private readonly LiveCheckRepository _repo;
     private readonly SecretService _secrets;
+    private readonly IStringLocalizer _l;
 
-    public LiveCheckService(LiveCheckRepository repo, SecretService secrets)
+    public LiveCheckService(LiveCheckRepository repo, SecretService secrets, IStringLocalizer l)
     {
+        _l = l;
         _repo = repo;
         _secrets = secrets;
     }
@@ -25,7 +28,7 @@ public class LiveCheckService
     {
         var row = await _repo.SelectById(id);
         return row is null
-            ? ServiceResult<LiveCheckDto>.NotFound($"Live-Check {id} nicht gefunden.")
+            ? ServiceResult<LiveCheckDto>.NotFound(_l["liveChecks.notFound", id].Value)
             : ServiceResult<LiveCheckDto>.Ok(new LiveCheckDto(row));
     }
 
@@ -36,7 +39,7 @@ public class LiveCheckService
         if (error is not null)
             return ServiceResult<LiveCheckDto>.InvalidValue(error);
         if (await _repo.SelectByName(row.Name) is not null)
-            return ServiceResult<LiveCheckDto>.Conflict("Ein Live-Check mit diesem Namen existiert bereits.");
+            return ServiceResult<LiveCheckDto>.Conflict(_l["liveChecks.nameExists"].Value);
 
         row.Id = await _repo.Insert(row);
         row.CreatedAt = DateTime.UtcNow;
@@ -47,13 +50,13 @@ public class LiveCheckService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<LiveCheckDto>.NotFound($"Live-Check {id} nicht gefunden.");
+            return ServiceResult<LiveCheckDto>.NotFound(_l["liveChecks.notFound", id].Value);
         var error = Apply(dto, row);
         if (error is not null)
             return ServiceResult<LiveCheckDto>.InvalidValue(error);
         var sameName = await _repo.SelectByName(row.Name);
         if (sameName is not null && sameName.Id != id)
-            return ServiceResult<LiveCheckDto>.Conflict("Ein Live-Check mit diesem Namen existiert bereits.");
+            return ServiceResult<LiveCheckDto>.Conflict(_l["liveChecks.nameExists"].Value);
 
         await _repo.Update(row);
         return ServiceResult<LiveCheckDto>.Changed(new LiveCheckDto(row));
@@ -63,7 +66,7 @@ public class LiveCheckService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<LiveCheckDto>.NotFound($"Live-Check {id} nicht gefunden.");
+            return ServiceResult<LiveCheckDto>.NotFound(_l["liveChecks.notFound", id].Value);
         await _repo.Delete(id);
         return ServiceResult<LiveCheckDto>.Ok(new LiveCheckDto(row));
     }
@@ -71,11 +74,11 @@ public class LiveCheckService
     private string? Apply(LiveCheckDto dto, LiveCheckDb row)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100)
-            return "Name fehlt oder ist zu lang (max. 100 Zeichen).";
+            return _l["validation.nameLength", 100].Value;
         if (!LiveCheckTypes.IsValid(dto.CheckType))
-            return "Ungültiger Check-Typ.";
+            return _l["liveChecks.invalidType"].Value;
         if (!Uri.TryCreate(dto.Target?.Trim(), UriKind.Absolute, out var uri))
-            return "Ziel muss eine absolute URL sein.";
+            return _l["liveChecks.invalidTarget"].Value;
 
         var allowed = dto.CheckType switch
         {
@@ -84,13 +87,13 @@ public class LiveCheckService
             _ => new[] { "mqtt", "mqtts" }
         };
         if (!allowed.Contains(uri.Scheme))
-            return $"Für {dto.CheckType} sind nur {string.Join(" / ", allowed.Select(s => s + "://"))} erlaubt.";
+            return _l["liveChecks.invalidScheme", dto.CheckType, string.Join(" / ", allowed.Select(s => s + "://"))].Value;
         if (dto.IntervalSeconds is < 5 or > 86400)
-            return "Intervall muss zwischen 5 und 86400 Sekunden liegen.";
+            return _l["liveChecks.invalidInterval"].Value;
         if (dto.TimeoutSeconds is < 1 or > 120)
-            return "Timeout muss zwischen 1 und 120 Sekunden liegen.";
+            return _l["liveChecks.invalidTimeout"].Value;
         if (dto.ExpectedStatusCode is not null and (< 100 or > 599))
-            return "Erwarteter Statuscode muss zwischen 100 und 599 liegen.";
+            return _l["liveChecks.invalidStatusCode"].Value;
 
         row.Name = dto.Name.Trim();
         row.CheckType = dto.CheckType;

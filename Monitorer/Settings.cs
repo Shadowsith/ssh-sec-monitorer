@@ -112,3 +112,10 @@ public class SwaggerSettings
 {
     public bool Enabled { get; set; }
 }
+
+/// <summary>UI language (section "Localization"). Texts live in i18n/&lt;language&gt;.json.</summary>
+public class LocalizationSettings
+{
+    /// <summary>Used when the browser asks for no supported language, and for background work (alert mails, poll results).</summary>
+    public string DefaultLanguage { get; set; } = "en";
+}

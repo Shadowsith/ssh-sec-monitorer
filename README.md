@@ -198,6 +198,25 @@ dotnet run
 Configurations are stored in `%APPDATA%/SshSecMonitorer/Configurator/configurator.db` (Linux: `~/.config/…`).
 The right-hand column shows the finished `config.yml` – copy it, save it as a file, or import an existing `config.yml` from the clipboard.
 
+## Languages (i18n)
+
+The UI is available in English and German. All texts live in one flat JSON file per language
+(`"key": "text"`, placeholders `{0}`, `{1}` like `string.Format`):
+
+| App | Files |
+|---|---|
+| Monitorer (web UI, API messages, alert mails, browser scripts) | `Monitorer/i18n/en.json`, `Monitorer/i18n/de.json` |
+| Configurator | `Configurator/i18n/en.json`, `Configurator/i18n/de.json` |
+
+- **Monitorer:** the language comes from the language menu in the header (cookie), otherwise from the browser's
+  `Accept-Language`, otherwise from `Localization:DefaultLanguage` (`DEFAULT_LANGUAGE` in `.env`, default `en`).
+  Background work – alert mails, poll results and alert messages stored in the database – uses the default language.
+  Keys starting with `js.` or `status.` are also handed to the browser scripts (`wwwroot/js/i18n.js`).
+  Missing keys are logged at startup and fall back to the default language.
+- **Configurator:** follows the operating system language, falling back to English.
+- **Adding a language:** copy `en.json` to e.g. `fr.json` next to it, translate the values (keep keys and placeholders)
+  and rebuild – the files are embedded into the assemblies and new languages are picked up automatically.
+
 ## Notes
 
 - Frontend libraries (Bootstrap 5.3, Bootstrap Icons, Apache ECharts 6) are bundled locally under `Monitorer/wwwroot/lib` – no CDN required (important for internal networks and the CSP).

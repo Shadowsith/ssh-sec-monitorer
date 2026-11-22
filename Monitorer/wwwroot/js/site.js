@@ -52,7 +52,7 @@ class SiteUi {
             if (!source || !navigator.clipboard) return;
             await navigator.clipboard.writeText(source.textContent);
             const label = btn.innerHTML;
-            btn.textContent = 'Kopiert';
+            btn.textContent = I18n.t('js.copied');
             setTimeout(() => { btn.innerHTML = label; }, 1500);
         }));
     }

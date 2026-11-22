@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Db;
@@ -14,9 +15,11 @@ public class UserService
     private readonly UserRepository _repo;
     private readonly AuthSettings _auth;
     private readonly PasswordHasher<UserDb> _hasher = new();
+    private readonly IStringLocalizer _l;
 
-    public UserService(UserRepository repo, IOptions<AuthSettings> auth)
+    public UserService(UserRepository repo, IOptions<AuthSettings> auth, IStringLocalizer l)
     {
+        _l = l;
         _repo = repo;
         _auth = auth.Value;
     }
@@ -30,12 +33,12 @@ public class UserService
     public async Task<ServiceResult<UserDto>> Create(UserCreateDto dto)
     {
         var error = ValidateUserName(dto.UserName) ?? ValidatePassword(dto.Password)
-                    ?? (UserRoles.IsValid(dto.Role) ? null : "Ungültige Rolle.");
+                    ?? (UserRoles.IsValid(dto.Role) ? null : _l["users.invalidRole"].Value);
         if (error is not null)
             return ServiceResult<UserDto>.InvalidValue(error);
 
         if (await _repo.SelectByUserName(dto.UserName.Trim()) is not null)
-            return ServiceResult<UserDto>.Conflict("Benutzername existiert bereits.");
+            return ServiceResult<UserDto>.Conflict(_l["users.nameExists"].Value);
 
         var user = new UserDb
         {
@@ -56,9 +59,9 @@ public class UserService
     {
         var user = await _repo.SelectById(id);
         if (user is null)
-            return ServiceResult<UserDto>.NotFound($"Benutzer {id} nicht gefunden.");
+            return ServiceResult<UserDto>.NotFound(_l["users.notFound", id].Value);
         if (user.AuthSource != AuthSources.Local)
-            return ServiceResult<UserDto>.NotAllowed("Das Passwort von LDAP-Benutzern wird im Verzeichnis verwaltet.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.ldapPassword"].Value);
         var error = ValidatePassword(password);
         if (error is not null)
             return ServiceResult<UserDto>.InvalidValue(error);
@@ -72,19 +75,18 @@ public class UserService
     public async Task<ServiceResult<UserDto>> UpdateRole(int id, string role, int currentUserId)
     {
         if (!UserRoles.IsValid(role))
-            return ServiceResult<UserDto>.InvalidValue("Ungültige Rolle.");
+            return ServiceResult<UserDto>.InvalidValue(_l["users.invalidRole"].Value);
         var user = await _repo.SelectById(id);
         if (user is null)
-            return ServiceResult<UserDto>.NotFound($"Benutzer {id} nicht gefunden.");
+            return ServiceResult<UserDto>.NotFound(_l["users.notFound", id].Value);
         if (user.Role == role)
             return ServiceResult<UserDto>.Changed(new UserDto(user));
         if (user.AuthSource == AuthSources.Ldap)
-            return ServiceResult<UserDto>.NotAllowed(
-                "Die Rolle von LDAP-Benutzern folgt der AD-Gruppe (Ldap:AdminGroupDn) und wird bei jeder Anmeldung neu gesetzt.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.ldapRole"].Value);
         if (id == currentUserId)
-            return ServiceResult<UserDto>.NotAllowed("Die eigene Rolle kann nicht geändert werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.ownRole"].Value);
         if (user.Role == UserRoles.Admin && user.IsActive && await _repo.SelectActiveAdminCount() <= 1)
-            return ServiceResult<UserDto>.NotAllowed("Dem letzten aktiven Admin kann die Admin-Rolle nicht entzogen werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.lastAdminRole"].Value);
 
         user.Role = role;
         await _repo.Update(user);
@@ -95,11 +97,11 @@ public class UserService
     {
         var user = await _repo.SelectById(id);
         if (user is null)
-            return ServiceResult<UserDto>.NotFound($"Benutzer {id} nicht gefunden.");
+            return ServiceResult<UserDto>.NotFound(_l["users.notFound", id].Value);
         if (!isActive && id == currentUserId)
-            return ServiceResult<UserDto>.NotAllowed("Der eigene Benutzer kann nicht deaktiviert werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.ownDisable"].Value);
         if (!isActive && user.Role == UserRoles.Admin && user.IsActive && await _repo.SelectActiveAdminCount() <= 1)
-            return ServiceResult<UserDto>.NotAllowed("Der letzte aktive Admin kann nicht deaktiviert werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.lastAdminDisable"].Value);
 
         user.IsActive = isActive;
         await _repo.Update(user);
@@ -110,11 +112,11 @@ public class UserService
     {
         var user = await _repo.SelectById(id);
         if (user is null)
-            return ServiceResult<UserDto>.NotFound($"Benutzer {id} nicht gefunden.");
+            return ServiceResult<UserDto>.NotFound(_l["users.notFound", id].Value);
         if (id == currentUserId)
-            return ServiceResult<UserDto>.NotAllowed("Der eigene Benutzer kann nicht gelöscht werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.ownDelete"].Value);
         if (user.Role == UserRoles.Admin && user.IsActive && await _repo.SelectActiveAdminCount() <= 1)
-            return ServiceResult<UserDto>.NotAllowed("Der letzte aktive Admin kann nicht gelöscht werden.");
+            return ServiceResult<UserDto>.NotAllowed(_l["users.lastAdminDelete"].Value);
 
         await _repo.Delete(id);
         return ServiceResult<UserDto>.Ok(new UserDto(user));
@@ -161,15 +163,15 @@ public class UserService
 
     public string? ValidatePassword(string? password) =>
         string.IsNullOrEmpty(password) || password.Length < _auth.MinPasswordLength
-            ? $"Das Passwort muss mindestens {_auth.MinPasswordLength} Zeichen lang sein."
+            ? _l["users.passwordTooShort", _auth.MinPasswordLength].Value
             : null;
 
-    public static string? ValidateUserName(string? userName)
+    public string? ValidateUserName(string? userName)
     {
         if (string.IsNullOrWhiteSpace(userName) || userName.Trim().Length > 100)
-            return "Benutzername fehlt oder ist zu lang (max. 100 Zeichen).";
+            return _l["users.nameLength", 100].Value;
         return userName.Trim().All(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_' or '@')
             ? null
-            : "Benutzername darf nur Buchstaben, Ziffern und . - _ @ enthalten.";
+            : _l["users.nameChars"].Value;
     }
 }

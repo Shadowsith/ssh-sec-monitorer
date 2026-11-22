@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
 using Monitorer.Data.Result;
@@ -8,18 +9,18 @@ namespace Monitorer.Services;
 /// <summary>Login with a local account or, if enabled, via LDAP / AD. Creates the JWT.</summary>
 public class AuthService
 {
-    private const string InvalidCredentials = "Benutzername oder Passwort ist falsch.";
-
     private readonly UserRepository _users;
     private readonly UserService _userService;
     private readonly LdapService _ldap;
     private readonly TokenService _tokens;
     private readonly LoginThrottleService _throttle;
+    private readonly IStringLocalizer _l;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(UserRepository users, UserService userService, LdapService ldap, TokenService tokens,
-        LoginThrottleService throttle, ILogger<AuthService> logger)
+        LoginThrottleService throttle, IStringLocalizer l, ILogger<AuthService> logger)
     {
+        _l = l;
         _users = users;
         _userService = userService;
         _ldap = ldap;
@@ -31,11 +32,11 @@ public class AuthService
     public async Task<ServiceResult<AuthDto>> Login(LoginDto dto, string? remoteIp)
     {
         if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrEmpty(dto.Password))
-            return ServiceResult<AuthDto>.InvalidValue("Benutzername und Passwort sind erforderlich.");
+            return ServiceResult<AuthDto>.InvalidValue(_l["auth.required"].Value);
 
         var userName = dto.UserName.Trim();
         if (_throttle.IsLocked(userName, remoteIp))
-            return ServiceResult<AuthDto>.Locked("Zu viele Fehlversuche. Bitte später erneut versuchen.");
+            return ServiceResult<AuthDto>.Locked(_l["auth.locked"].Value);
 
         var user = await _users.SelectByUserName(userName);
         if (user is not null && user.AuthSource == AuthSources.Local)
@@ -57,10 +58,10 @@ public class AuthService
         {
             _throttle.RegisterFailure(userName, remoteIp);
             _logger.LogWarning("Failed login for {UserName} from {RemoteIp}", userName, remoteIp);
-            return ServiceResult<AuthDto>.Unauthorized(InvalidCredentials);
+            return ServiceResult<AuthDto>.Unauthorized(_l["auth.invalidCredentials"].Value);
         }
         if (!user.IsActive)
-            return ServiceResult<AuthDto>.Forbidden("Der Benutzer ist deaktiviert.");
+            return ServiceResult<AuthDto>.Forbidden(_l["auth.inactive"].Value);
 
         _throttle.RegisterSuccess(userName, remoteIp);
         await _users.UpdateLastLoginAt(user.Id, DateTime.UtcNow);

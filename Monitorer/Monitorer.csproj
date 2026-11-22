@@ -32,4 +32,10 @@
     <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Translations: one flat JSON object per language, embedded so they work the same in dev, publish and Docker -->
+  <ItemGroup>
+    <Content Remove="i18n\**" />
+    <EmbeddedResource Include="i18n\*.json" />
+  </ItemGroup>
+
 </Project>

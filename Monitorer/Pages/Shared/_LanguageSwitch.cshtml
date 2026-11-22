@@ -1,0 +1,23 @@
+@* Language menu; model = extra classes for the toggle button (light header / normal page). *@
+@model string
+@inject Monitorer.Services.JsonStringLocalizer Languages
+@{
+    var current = Languages.CurrentLanguage;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="dropdown">
+    <button type="button" class="btn btn-sm @Model dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"
+            title="@L["layout.language"]" aria-label="@L["layout.language"]">
+        <i class="bi bi-translate"></i><span class="ms-1 text-uppercase">@current</span>
+    </button>
+    <form method="post" asp-page="/Language" class="dropdown-menu dropdown-menu-end">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        @foreach (var language in Languages.Languages)
+        {
+            <button type="submit" name="language" value="@language" lang="@language"
+                    class="dropdown-item @(language == current ? "active" : "")" aria-current="@(language == current ? "true" : null)">
+                @System.Globalization.CultureInfo.GetCultureInfo(language).NativeName
+            </button>
+        }
+    </form>
+</div>

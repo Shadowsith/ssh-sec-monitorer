@@ -11,11 +11,11 @@ public class ErrorModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int? Code { get; set; }
 
-    public string Title => Code switch
+    public string TitleKey => Code switch
     {
-        403 => "Kein Zugriff",
-        404 => "Seite nicht gefunden",
-        _ => "Ein Fehler ist aufgetreten"
+        403 => "error.forbidden",
+        404 => "error.notFound",
+        _ => "error.general"
     };
 
     public void OnGet() { }

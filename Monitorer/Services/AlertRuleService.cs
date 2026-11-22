@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using MimeKit;
 using Monitorer.Data;
 using Monitorer.Data.Db;
@@ -15,10 +16,12 @@ public class AlertRuleService
     private readonly AlertStateRepository _states;
     private readonly AgentRepository _agents;
     private readonly LiveCheckRepository _liveChecks;
+    private readonly IStringLocalizer _l;
 
     public AlertRuleService(AlertRuleRepository repo, AlertStateRepository states, AgentRepository agents,
-        LiveCheckRepository liveChecks)
+        LiveCheckRepository liveChecks, IStringLocalizer l)
     {
+        _l = l;
         _repo = repo;
         _states = states;
         _agents = agents;
@@ -34,6 +37,7 @@ public class AlertRuleService
         var rules = (await _repo.Select())
             .Select(r => new AlertRuleDto(r)
             {
+                ScenarioName = _l[AlertScenarios.NameKey(r.Scenario)].Value,
                 ScopeText = ScopeText(r, agents, checks),
                 ActiveCount = active.GetValueOrDefault(r.Id)
             })
@@ -45,8 +49,8 @@ public class AlertRuleService
     {
         var row = await _repo.SelectById(id);
         return row is null
-            ? ServiceResult<AlertRuleDto>.NotFound($"Alarm-Regel {id} nicht gefunden.")
-            : ServiceResult<AlertRuleDto>.Ok(new AlertRuleDto(row));
+            ? ServiceResult<AlertRuleDto>.NotFound(_l["alerts.ruleNotFound", id].Value)
+            : ServiceResult<AlertRuleDto>.Ok(ToDto(row));
     }
 
     public async Task<ServiceResult<List<ActiveAlertDto>>> GetActive()
@@ -73,31 +77,31 @@ public class AlertRuleService
         if (error is not null)
             return ServiceResult<AlertRuleDto>.InvalidValue(error);
         if (await _repo.SelectByName(row.Name) is not null)
-            return ServiceResult<AlertRuleDto>.Conflict("Eine Alarm-Regel mit diesem Namen existiert bereits.");
+            return ServiceResult<AlertRuleDto>.Conflict(_l["alerts.nameExists"].Value);
 
         row.Id = await _repo.Insert(row);
         row.CreatedAt = DateTime.UtcNow;
-        return ServiceResult<AlertRuleDto>.Created(new AlertRuleDto(row));
+        return ServiceResult<AlertRuleDto>.Created(ToDto(row));
     }
 
     public async Task<ServiceResult<AlertRuleDto>> Update(int id, AlertRuleDto dto)
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AlertRuleDto>.NotFound($"Alarm-Regel {id} nicht gefunden.");
+            return ServiceResult<AlertRuleDto>.NotFound(_l["alerts.ruleNotFound", id].Value);
         var scopeBefore = (row.Scenario, row.AgentId, row.LiveCheckId, row.ContainerPattern);
         var error = await Apply(dto, row);
         if (error is not null)
             return ServiceResult<AlertRuleDto>.InvalidValue(error);
         var sameName = await _repo.SelectByName(row.Name);
         if (sameName is not null && sameName.Id != id)
-            return ServiceResult<AlertRuleDto>.Conflict("Eine Alarm-Regel mit diesem Namen existiert bereits.");
+            return ServiceResult<AlertRuleDto>.Conflict(_l["alerts.nameExists"].Value);
 
         await _repo.Update(row);
         // a changed scenario / scope starts fresh - old alerts would no longer match
         if (scopeBefore != (row.Scenario, row.AgentId, row.LiveCheckId, row.ContainerPattern))
             await _states.DeleteByRuleId(id);
-        return ServiceResult<AlertRuleDto>.Changed(new AlertRuleDto(row));
+        return ServiceResult<AlertRuleDto>.Changed(ToDto(row));
     }
 
     /// <summary>PATCH …/enabled: switch a rule on / off.</summary>
@@ -105,46 +109,46 @@ public class AlertRuleService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AlertRuleDto>.NotFound($"Alarm-Regel {id} nicht gefunden.");
+            return ServiceResult<AlertRuleDto>.NotFound(_l["alerts.ruleNotFound", id].Value);
         row.Enabled = enabled;
         await _repo.Update(row);
-        return ServiceResult<AlertRuleDto>.Changed(new AlertRuleDto(row));
+        return ServiceResult<AlertRuleDto>.Changed(ToDto(row));
     }
 
     public async Task<ServiceResult<AlertRuleDto>> Delete(int id)
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AlertRuleDto>.NotFound($"Alarm-Regel {id} nicht gefunden.");
+            return ServiceResult<AlertRuleDto>.NotFound(_l["alerts.ruleNotFound", id].Value);
         await _repo.Delete(id);
-        return ServiceResult<AlertRuleDto>.Ok(new AlertRuleDto(row));
+        return ServiceResult<AlertRuleDto>.Ok(ToDto(row));
     }
 
     private async Task<string?> Apply(AlertRuleDto dto, AlertRuleDb row)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100)
-            return "Name fehlt oder ist zu lang (max. 100 Zeichen).";
+            return _l["validation.nameLength", 100].Value;
         if (!AlertScenarios.IsValid(dto.Scenario))
-            return "Ungültiges Szenario.";
+            return _l["alerts.invalidScenario"].Value;
         if (dto.DelayMinutes is < 0 or > 1440)
-            return "Verzögerung muss zwischen 0 und 1440 Minuten liegen.";
+            return _l["alerts.invalidDelay"].Value;
         if (dto.RepeatMinutes is < 0 or > 10080)
-            return "Wiederholintervall muss zwischen 0 (einmalig) und 10080 Minuten (1 Woche) liegen.";
+            return _l["alerts.invalidRepeat"].Value;
         if (dto.Scenario == AlertScenarios.AgentStale && dto.ThresholdMinutes is null or < 1 or > 10080)
-            return "Bitte angeben, nach wie vielen Minuten ohne Aktualisierung alarmiert wird (1–10080).";
+            return _l["alerts.invalidThreshold"].Value;
         if (dto.Scenario == AlertScenarios.AgentStatus && dto.MinStatus is not (MonitorStatus.Warning or MonitorStatus.Critical))
-            return "Bitte den Mindest-Status (Warnung oder Kritisch) wählen.";
+            return _l["alerts.invalidMinStatus"].Value;
         foreach (var recipient in dto.Recipients.SplitList())
         {
             if (!MailboxAddress.TryParse(recipient, out _) || !recipient.Contains('@'))
-                return $"Ungültige E-Mail-Adresse: {recipient}";
+                return _l["validation.invalidEmail", recipient].Value;
         }
         var usesAgent = AlertScenarios.UsesAgent(dto.Scenario);
         var usesCheck = AlertScenarios.UsesLiveCheck(dto.Scenario);
         if (usesAgent && dto.AgentId is not null && await _agents.SelectById(dto.AgentId.Value) is null)
-            return "Der gewählte Agent existiert nicht.";
+            return _l["alerts.agentMissing"].Value;
         if (usesCheck && dto.LiveCheckId is not null && await _liveChecks.SelectById(dto.LiveCheckId.Value) is null)
-            return "Der gewählte Live-Check existiert nicht.";
+            return _l["alerts.liveCheckMissing"].Value;
 
         row.Name = dto.Name.Trim();
         row.Scenario = dto.Scenario;
@@ -163,13 +167,15 @@ public class AlertRuleService
         return null;
     }
 
-    private static string ScopeText(AlertRuleDb r, Dictionary<int, string> agents, Dictionary<int, string> checks)
+    private AlertRuleDto ToDto(AlertRuleDb row) => new(row) { ScenarioName = _l[AlertScenarios.NameKey(row.Scenario)].Value };
+
+    private string ScopeText(AlertRuleDb r, Dictionary<int, string> agents, Dictionary<int, string> checks)
     {
         if (AlertScenarios.UsesLiveCheck(r.Scenario))
-            return r.LiveCheckId is null ? "alle Live-Checks" : checks.GetValueOrDefault(r.LiveCheckId.Value, "?");
-        var vm = r.AgentId is null ? "alle VMs" : agents.GetValueOrDefault(r.AgentId.Value, "?");
+            return r.LiveCheckId is null ? _l["alerts.allLiveChecks"].Value : checks.GetValueOrDefault(r.LiveCheckId.Value, "?");
+        var vm = r.AgentId is null ? _l["alerts.allVms"].Value : agents.GetValueOrDefault(r.AgentId.Value, "?");
         return AlertScenarios.UsesContainerPattern(r.Scenario) && r.ContainerPattern is not null
-            ? $"{vm} · Container {r.ContainerPattern}"
+            ? _l["alerts.scopeContainers", vm, r.ContainerPattern].Value
             : vm;
     }
 }

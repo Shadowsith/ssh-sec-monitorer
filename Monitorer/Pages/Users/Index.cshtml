@@ -1,13 +1,13 @@
 @page
 @model Monitorer.Pages.Users.IndexModel
 @{
-    ViewData["Title"] = "Benutzer";
+    ViewData["Title"] = L["nav.users"];
     var currentUserId = User.GetUserId();
 }
-<h1 class="h3 mb-3">Benutzer</h1>
+<h1 class="h3 mb-3">@L["nav.users"]</h1>
 @if (Model.LdapEnabled)
 {
-    <div class="alert alert-info"><i class="bi bi-diagram-3 me-2"></i>LDAP/AD ist aktiv: Domänenbenutzer werden bei der ersten Anmeldung automatisch angelegt; die Rolle folgt der Admin-Gruppe.</div>
+    <div class="alert alert-info"><i class="bi bi-diagram-3 me-2"></i>@L["users.ldapHint"]</div>
 }
 <div class="row g-3">
     <div class="col-12 col-xxl-8">
@@ -15,7 +15,7 @@
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead>
-                    <tr><th>Benutzer</th><th>Rolle</th><th>Quelle</th><th>Status</th><th>Letzte Anmeldung</th><th class="text-end">Aktionen</th></tr>
+                    <tr><th>@L["users.user"]</th><th>@L["users.role"]</th><th>@L["users.source"]</th><th>@L["common.status"]</th><th>@L["users.lastLogin"]</th><th class="text-end">@L["common.actions"]</th></tr>
                     </thead>
                     <tbody>
                     @foreach (var u in Model.Users)
@@ -26,37 +26,37 @@
                                 @if (u.AuthSource == AuthSources.Local && u.Id != currentUserId)
                                 {
                                     <form method="post" asp-page-handler="Role" asp-route-id="@u.Id" class="d-flex gap-1 m-0">
-                                        <select name="role" class="form-select form-select-sm w-auto" aria-label="Rolle von @u.UserName" data-auto-submit>
+                                        <select name="role" class="form-select form-select-sm w-auto" aria-label="@L["users.roleOf", u.UserName]" data-auto-submit>
                                             <option value="@UserRoles.User" selected="@(u.Role == UserRoles.User)">User</option>
                                             <option value="@UserRoles.Admin" selected="@(u.Role == UserRoles.Admin)">Admin</option>
                                         </select>
-                                        <noscript><button type="submit" class="btn btn-sm btn-outline-primary">Ändern</button></noscript>
+                                        <noscript><button type="submit" class="btn btn-sm btn-outline-primary">@L["users.change"]</button></noscript>
                                     </form>
                                 }
                                 else
                                 {
                                     <span class="badge text-bg-@(u.Role == UserRoles.Admin ? "primary" : "secondary")"
-                                          title="@(u.AuthSource == AuthSources.Ldap ? "Rolle folgt der AD-Gruppe" : "eigene Rolle")">@u.Role</span>
+                                          title="@(u.AuthSource == AuthSources.Ldap ? L["users.roleFromLdap"] : L["users.roleOwn"])">@u.Role</span>
                                 }
                             </td>
                             <td>@u.AuthSource</td>
-                            <td>@(u.IsActive ? "aktiv" : "deaktiviert")</td>
-                            <td>@u.LastLoginAt.ToBerlinString()</td>
+                            <td>@(u.IsActive ? L["users.active"] : L["users.inactive"])</td>
+                            <td>@u.LastLoginAt.ToBerlinString(L)</td>
                             <td class="text-end text-nowrap">
                                 @if (u.Id != currentUserId)
                                 {
                                     <form method="post" asp-page-handler="ToggleActive" asp-route-id="@u.Id" asp-route-isActive="@(!u.IsActive)" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-secondary" title="@(u.IsActive ? "Deaktivieren" : "Aktivieren")">
+                                        <button class="btn btn-sm btn-outline-secondary" title="@(u.IsActive ? L["common.disable"] : L["common.enable"])">
                                             <i class="bi @(u.IsActive ? "bi-pause" : "bi-play")"></i>
                                         </button>
                                     </form>
                                     <form method="post" asp-page-handler="Delete" asp-route-id="@u.Id" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-danger" title="Löschen" data-confirm="Benutzer @u.UserName wirklich löschen?"><i class="bi bi-trash"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" title="@L["common.delete"]" data-confirm="@L["users.deleteConfirm", u.UserName]"><i class="bi bi-trash"></i></button>
                                     </form>
                                 }
                                 @if (u.AuthSource == AuthSources.Local)
                                 {
-                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#pw-@u.Id" title="Passwort ändern"><i class="bi bi-key"></i></button>
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#pw-@u.Id" title="@L["users.changePassword"]"><i class="bi bi-key"></i></button>
                                 }
                             </td>
                         </tr>
@@ -65,9 +65,9 @@
                             <tr class="collapse" id="pw-@u.Id">
                                 <td colspan="6" class="bg-body-tertiary">
                                     <form method="post" asp-page-handler="Password" asp-route-id="@u.Id" class="d-flex flex-wrap gap-2 align-items-center">
-                                        <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Neues Passwort"
+                                        <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="@L["users.newPassword"]"
                                                minlength="@Model.MinPasswordLength" autocomplete="new-password" required />
-                                        <button class="btn btn-sm btn-primary">Passwort setzen</button>
+                                        <button class="btn btn-sm btn-primary">@L["users.setPassword"]</button>
                                     </form>
                                 </td>
                             </tr>
@@ -80,25 +80,25 @@
     </div>
     <div class="col-12 col-xxl-4">
         <form method="post" asp-page-handler="Create" class="card shadow-sm" autocomplete="off">
-            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-person-plus me-2"></i>Lokalen Benutzer anlegen</div>
+            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-person-plus me-2"></i>@L["users.create"]</div>
             <div class="card-body d-flex flex-column gap-3">
-                <div><label asp-for="NewUser.UserName" class="form-label">Benutzername</label><input asp-for="NewUser.UserName" class="form-control" required /></div>
-                <div><label asp-for="NewUser.DisplayName" class="form-label">Anzeigename</label><input asp-for="NewUser.DisplayName" class="form-control" /></div>
-                <div><label asp-for="NewUser.Email" class="form-label">E-Mail</label><input asp-for="NewUser.Email" type="email" class="form-control" /></div>
+                <div><label asp-for="NewUser.UserName" class="form-label">@L["user.userName"]</label><input asp-for="NewUser.UserName" class="form-control" required /></div>
+                <div><label asp-for="NewUser.DisplayName" class="form-label">@L["user.displayName"]</label><input asp-for="NewUser.DisplayName" class="form-control" /></div>
+                <div><label asp-for="NewUser.Email" class="form-label">@L["user.email"]</label><input asp-for="NewUser.Email" type="email" class="form-control" /></div>
                 <div>
-                    <label asp-for="NewUser.Password" class="form-label">Passwort</label>
+                    <label asp-for="NewUser.Password" class="form-label">@L["user.password"]</label>
                     <input asp-for="NewUser.Password" type="password" class="form-control" minlength="@Model.MinPasswordLength" autocomplete="new-password" required />
-                    <div class="form-text">Mindestens @Model.MinPasswordLength Zeichen.</div>
+                    <div class="form-text">@L["user.passwordMinLength", Model.MinPasswordLength]</div>
                 </div>
                 <div>
-                    <label asp-for="NewUser.Role" class="form-label">Rolle</label>
+                    <label asp-for="NewUser.Role" class="form-label">@L["users.role"]</label>
                     <select asp-for="NewUser.Role" class="form-select">
-                        <option value="@UserRoles.User">User (nur lesen)</option>
+                        <option value="@UserRoles.User">@L["users.roleUserReadOnly"]</option>
                         <option value="@UserRoles.Admin">Admin</option>
                     </select>
                 </div>
             </div>
-            <div class="card-footer"><button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Anlegen</button></div>
+            <div class="card-footer"><button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>@L["users.createSubmit"]</button></div>
         </form>
     </div>
 </div>

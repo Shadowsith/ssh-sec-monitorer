@@ -1,4 +1,4 @@
-// "Verbindung testen" on the SSH credential page: sends the current (also unsaved) form values to
+// "Test connection" on the SSH credential page: sends the current (also unsaved) form values to
 // POST api/ssh-credentials/test. The session cookie authenticates, the antiforgery token of the form goes
 // into the X-CSRF-TOKEN header (checked by ApiAntiforgeryFilter). Secrets are only sent, never displayed.
 class SshConnectionTest {
@@ -54,9 +54,9 @@ class SshConnectionTest {
                 body: JSON.stringify(body)
             });
             if (response.ok) this.show(await response.json());
-            else this.error(await response.text() || `Fehler ${response.status}`);
+            else this.error(await response.text() || I18n.t('js.error.status', response.status));
         } catch (e) {
-            this.error('Der Monitorer ist nicht erreichbar.');
+            this.error(I18n.t('js.error.unreachable'));
         } finally {
             this.busy(false);
         }
@@ -66,7 +66,7 @@ class SshConnectionTest {
         this.button.disabled = on;
         this.box.querySelector('[data-test-spinner]').classList.toggle('d-none', !on);
         this.box.querySelector('[data-test-icon]').classList.toggle('d-none', on);
-        if (on) this.result.replaceChildren(SshConnectionTest.el('div', 'small text-body-secondary', 'Teste Verbindung …'));
+        if (on) this.result.replaceChildren(SshConnectionTest.el('div', 'small text-body-secondary', I18n.t('js.sshTest.running')));
     }
 
     show(result) {
@@ -82,7 +82,7 @@ class SshConnectionTest {
             list.append(item);
         });
         const summary = SshConnectionTest.el('div', `alert ${result.success ? 'alert-success' : 'alert-danger'} py-2 mb-2`,
-            result.success ? 'Verbindung erfolgreich.' : 'Test fehlgeschlagen – siehe markierten Schritt.');
+            I18n.t(result.success ? 'js.sshTest.success' : 'js.sshTest.failed'));
         this.result.replaceChildren(summary, list);
     }
 

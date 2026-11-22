@@ -61,11 +61,12 @@ class SsmCharts {
         }
     }
 
+    /** Status value ("Ok", "Down", ...) → text of the status.* keys shared with the server. */
     static statusText(status) {
-        return {
-            Ok: 'OK', Up: 'Erreichbar', Degraded: 'Erreichbar mit Fehlern', Warning: 'Warnung', Critical: 'Kritisch', Unreachable: 'Nicht erreichbar',
-            Down: 'Down', Disabled: 'Deaktiviert', Unknown: 'Unbekannt'
-        }[status] || status;
+        if (!status) return '';
+        const key = 'status.' + status.charAt(0).toLowerCase() + status.slice(1);
+        const text = I18n.t(key);
+        return text === key ? status : text;
     }
 
     /** Color of a percentage value by warn / critical threshold. */
@@ -79,11 +80,11 @@ class SsmCharts {
         let v = Number(value) || 0;
         let i = 0;
         while (Math.abs(v) >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-        return v.toLocaleString('de-DE', { maximumFractionDigits: i === 0 ? 0 : 1 }) + ' ' + units[i];
+        return I18n.number(v, { maximumFractionDigits: i === 0 ? 0 : 1 }) + ' ' + units[i];
     }
 
     static formatTime(ts) {
-        return new Date(ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        return new Date(ts).toLocaleTimeString(I18n.lang, { hour: '2-digit', minute: '2-digit' });
     }
 
     /** [[unix_s, value]] → [[ms, value]] for a time axis. */

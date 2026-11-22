@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Db;
@@ -20,11 +21,13 @@ public class KnownContainerService
     private readonly AgentSnapshotRepository _snapshots;
     private readonly MonitoringEvaluationService _evaluation;
     private readonly MonitoringSettings _settings;
+    private readonly IStringLocalizer _l;
     private readonly List<Regex> _ignore;
 
     public KnownContainerService(KnownContainerRepository repo, AgentSnapshotRepository snapshots,
-        MonitoringEvaluationService evaluation, IOptions<MonitoringSettings> settings)
+        MonitoringEvaluationService evaluation, IOptions<MonitoringSettings> settings, IStringLocalizer l)
     {
+        _l = l;
         _repo = repo;
         _snapshots = snapshots;
         _evaluation = evaluation;
@@ -74,7 +77,7 @@ public class KnownContainerService
         if (status is not (MonitorStatus.Warning or MonitorStatus.Critical))
             return;
         foreach (var m in missing)
-            evaluation.Raise(status, $"Container {m.Name} ist nicht mehr vorhanden (zuletzt gesehen {m.LastSeenAt:yyyy-MM-dd HH:mm} UTC).");
+            evaluation.Raise(status, _l["finding.containerMissing", m.Name, m.LastSeenAt.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)].Value);
     }
 
     /// <summary>DELETE: forget one container (e.g. it was removed on purpose).</summary>
@@ -82,7 +85,7 @@ public class KnownContainerService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<KnownContainerDb>.NotFound($"Container-Eintrag {id} nicht gefunden.");
+            return ServiceResult<KnownContainerDb>.NotFound(_l["containers.notFound", id].Value);
         await _repo.Delete(id);
         return ServiceResult<KnownContainerDb>.Ok(row);
     }

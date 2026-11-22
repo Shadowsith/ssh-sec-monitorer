@@ -1,3 +1,4 @@
+using Configurator.Localization;
 using System.Text.Json;
 using Configurator.Data.Db;
 using Configurator.Data.Model;
@@ -36,19 +37,19 @@ public class AgentConfigService
     public async Task<ServiceResult<AgentConfigDb>> Save(int? id, string name, string description, AgentSettings settings)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return ServiceResult<AgentConfigDb>.Fail("Bitte einen Namen für die Konfiguration angeben.");
+            return ServiceResult<AgentConfigDb>.Fail(Texts.Get("validation.nameRequired"));
         var errors = _yaml.Validate(settings);
         if (errors.Count > 0)
             return ServiceResult<AgentConfigDb>.Fail(string.Join(" ", errors));
 
         var sameName = await _repo.SelectByName(name.Trim());
         if (sameName is not null && sameName.Id != id)
-            return ServiceResult<AgentConfigDb>.Fail("Eine Konfiguration mit diesem Namen existiert bereits.");
+            return ServiceResult<AgentConfigDb>.Fail(Texts.Get("validation.nameExists"));
 
         var now = DateTime.UtcNow.ToString("O");
         var row = id is null ? new AgentConfigDb { CreatedAt = now } : await _repo.SelectById(id.Value);
         if (row is null)
-            return ServiceResult<AgentConfigDb>.Fail("Die Konfiguration existiert nicht mehr.");
+            return ServiceResult<AgentConfigDb>.Fail(Texts.Get("validation.gone"));
 
         row.Name = name.Trim();
         row.Description = description.Trim();
@@ -63,9 +64,9 @@ public class AgentConfigService
 
     public async Task<ServiceResult<AgentConfigDb>> Duplicate(AgentConfigDb source)
     {
-        var name = source.Name + " (Kopie)";
+        var name = Texts.Get("duplicate.name", source.Name);
         for (var i = 2; await _repo.SelectByName(name) is not null; i++)
-            name = $"{source.Name} (Kopie {i})";
+            name = Texts.Get("duplicate.nameNumbered", source.Name, i);
         return await Save(null, name, source.Description, ReadSettings(source));
     }
 

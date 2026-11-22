@@ -1,21 +1,21 @@
 @page
 @model Monitorer.Pages.Agents.IndexModel
 @{
-    ViewData["Title"] = "Agents";
+    ViewData["Title"] = L["nav.agents"];
     var s = Model.Settings;
 }
 <div data-live="agents">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h1 class="h3 mb-0">Agents</h1>
+        <h1 class="h3 mb-0">@L["nav.agents"]</h1>
         @if (User.IsAdmin())
         {
-            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>Agent hinzufügen</a>
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>@L["agents.add"]</a>
         }
     </div>
 
     @if (Model.Agents.Count == 0)
     {
-        <div class="alert alert-info">Noch keine Agents angelegt.</div>
+        <div class="alert alert-info">@L["agents.empty"]</div>
     }
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 row-cols-xxl-4 g-3">
         @foreach (var item in Model.Agents)
@@ -34,7 +34,7 @@
                             <span class="text-truncate">
                                 @if (item.Agent.IsLocal())
                                 {
-                                    <span class="badge text-bg-info me-1" title="Agent auf dem Monitorer-Host, gelesen aus dem gemounteten Ordner">lokal</span>@item.Agent.LocalDir
+                                    <span class="badge text-bg-info me-1" title="@L["agents.localHint"]">@L["agents.local"]</span>@item.Agent.LocalDir
                                 }
                                 else
                                 {
@@ -43,15 +43,15 @@
                             </span>
                             @if (snap?.AgentVersion is string agentVersion)
                             {
-                                <span class="text-nowrap" title="Agent-Version"><i class="bi bi-tag me-1"></i>@("v" + agentVersion)</span>
+                                <span class="text-nowrap" title="@L["agents.version"]"><i class="bi bi-tag me-1"></i>@("v" + agentVersion)</span>
                             }
                         </div>
                         <partial name="_UsageBar" model='new UsageBarDto("CPU", snap?.CpuPercent, null, s.CpuWarnPercent, s.CpuCriticalPercent)' />
                         <partial name="_UsageBar" model='new UsageBarDto("RAM", snap?.MemoryPercent, null, s.MemoryWarnPercent, s.MemoryCriticalPercent)' />
-                        <partial name="_UsageBar" model='new UsageBarDto("Disk (max.)", snap?.DiskPercentMax, null, s.DiskWarnPercent, s.DiskCriticalPercent)' />
+                        <partial name="_UsageBar" model='new UsageBarDto(L["usage.diskMax"], snap?.DiskPercentMax, null, s.DiskWarnPercent, s.DiskCriticalPercent)' />
                         <div class="d-flex justify-content-between small text-body-secondary mt-auto pt-2">
-                            <span><i class="bi bi-box me-1"></i>@(snap?.ContainersTotal is null ? "–" : $"{snap!.ContainersRunning}/{snap.ContainersTotal}") Container</span>
-                            <span title="@((snap?.FetchedAt).ToBerlinString("dd.MM.yyyy HH:mm:ss"))"><i class="bi bi-clock me-1"></i>@((snap?.FetchedAt).ToAgeString())</span>
+                            <span><i class="bi bi-box me-1"></i>@L["agents.containerCount", snap?.ContainersTotal is null ? "–" : $"{snap!.ContainersRunning}/{snap.ContainersTotal}"]</span>
+                            <span title="@((snap?.FetchedAt).ToBerlinString(L, "format.dateTimeSeconds"))"><i class="bi bi-clock me-1"></i>@((snap?.FetchedAt).ToAgeString(L))</span>
                         </div>
                     </div>
                     @if (User.IsAdmin())
@@ -59,13 +59,13 @@
                         <div class="card-footer bg-transparent d-flex justify-content-between align-items-center small text-body-secondary">
                             <span class="text-truncate">@if (item.Agent.IsLocal())
                             {
-                                <i class="bi bi-house-door me-1"></i>@("lokal")
+                                <i class="bi bi-house-door me-1"></i>@L["agents.local"]
                             }
                             else
                             {
                                 <i class="bi bi-key me-1"></i>@item.Agent.SshCredentialName
-                            } · alle @item.Agent.PollIntervalSeconds s</span>
-                            <a class="btn btn-sm btn-outline-secondary position-relative z-2" asp-page="Edit" asp-route-id="@item.Agent.Id" title="Bearbeiten"><i class="bi bi-pencil"></i></a>
+                            } · @L["agents.everySeconds", item.Agent.PollIntervalSeconds]</span>
+                            <a class="btn btn-sm btn-outline-secondary position-relative z-2" asp-page="Edit" asp-route-id="@item.Agent.Id" title="@L["common.edit"]"><i class="bi bi-pencil"></i></a>
                         </div>
                     }
                 </div>

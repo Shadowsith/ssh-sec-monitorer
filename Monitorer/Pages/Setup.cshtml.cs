@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data.Dto;
 using Monitorer.Services;
@@ -12,10 +13,12 @@ namespace Monitorer.Pages;
 public class SetupModel : PageModel
 {
     private readonly SetupService _setup;
+    private readonly IStringLocalizer _l;
 
-    public SetupModel(SetupService setup, IOptions<AuthSettings> auth)
+    public SetupModel(SetupService setup, IOptions<AuthSettings> auth, IStringLocalizer l)
     {
         _setup = setup;
+        _l = l;
         MinPasswordLength = auth.Value.MinPasswordLength;
     }
 
@@ -38,7 +41,7 @@ public class SetupModel : PageModel
             Input.Password = Input.PasswordRepeat = "";
             return Page();
         }
-        TempData["Success"] = "Admin-Benutzer angelegt. Bitte jetzt anmelden.";
+        TempData["Success"] = _l["setup.created"].Value;
         return RedirectToPage("/Login");
     }
 }

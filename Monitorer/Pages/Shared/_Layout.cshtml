@@ -1,5 +1,6 @@
+@inject Monitorer.Services.JsonStringLocalizer Texts
 <!DOCTYPE html>
-<html lang="de" data-bs-theme="light">
+<html lang="@Texts.CurrentLanguage" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,7 +17,7 @@
     <header class="navbar bg-dark sticky-top flex-nowrap py-2 shadow-sm" data-bs-theme="dark">
         <div class="container-fluid gap-2">
             <button class="navbar-toggler d-lg-none border-0" type="button" data-bs-toggle="offcanvas"
-                    data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Navigation öffnen">
+                    data-bs-target="#sidebar" aria-controls="sidebar" aria-label="@L["layout.openNavigation"]">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <a class="navbar-brand d-flex align-items-center gap-2 me-auto" asp-page="/Index">
@@ -24,14 +25,15 @@
                 <small class="text-body-secondary fs-6 fw-normal">v@(typeof(Program).Assembly.GetName().Version?.ToString(3))</small>
             </a>
             <div class="d-flex align-items-center gap-2 text-light">
-                <span class="small px-2 d-none" role="status" data-live-status><i class="bi bi-broadcast me-1"></i><span>Live</span></span>
-                <button type="button" class="btn btn-sm btn-outline-light" data-theme-toggle title="Hell / Dunkel">
+                <span class="small px-2 d-none" role="status" data-live-status><i class="bi bi-broadcast me-1"></i><span>@L["layout.live"]</span></span>
+                <button type="button" class="btn btn-sm btn-outline-light" data-theme-toggle title="@L["layout.theme"]">
                     <i class="bi bi-circle-half"></i>
                 </button>
+                <partial name="_LanguageSwitch" model="@("btn-outline-light")" />
                 <span class="d-none d-md-inline small px-2"><i class="bi bi-person-circle me-1"></i>@User.GetDisplayName()</span>
                 <form method="post" asp-page="/Logout" class="m-0">
-                    <button class="btn btn-sm btn-outline-light" type="submit" title="Abmelden">
-                        <i class="bi bi-box-arrow-right"></i><span class="d-none d-sm-inline ms-1">Abmelden</span>
+                    <button class="btn btn-sm btn-outline-light" type="submit" title="@L["layout.logout"]">
+                        <i class="bi bi-box-arrow-right"></i><span class="d-none d-sm-inline ms-1">@L["layout.logout"]</span>
                     </button>
                 </form>
             </div>
@@ -47,10 +49,13 @@
 }
 else
 {
-    <main class="flex-grow-1 d-flex align-items-center justify-content-center p-3">
+    <main class="flex-grow-1 d-flex flex-column align-items-center justify-content-center p-3 position-relative">
+        <div class="position-absolute top-0 end-0 p-3"><partial name="_LanguageSwitch" model="@("btn-outline-secondary")" /></div>
         @RenderBody()
     </main>
 }
+<script type="application/json" id="i18n-texts">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Texts.GetAll(Monitorer.Services.JsonStringLocalizer.ScriptPrefixes)))</script>
+<script src="~/js/i18n.js" asp-append-version="true"></script>
 <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @if (User.Identity?.IsAuthenticated == true)

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
@@ -15,9 +16,11 @@ public class EditModel : PageModel
     private readonly AgentService _agents;
     private readonly SshCredentialService _credentials;
     private readonly MonitoringSettings _settings;
+    private readonly IStringLocalizer _l;
 
-    public EditModel(AgentService agents, SshCredentialService credentials, IOptions<MonitoringSettings> settings)
+    public EditModel(AgentService agents, SshCredentialService credentials, IOptions<MonitoringSettings> settings, IStringLocalizer l)
     {
+        _l = l;
         _agents = agents;
         _credentials = credentials;
         _settings = settings.Value;
@@ -63,7 +66,7 @@ public class EditModel : PageModel
             await LoadCredentials();
             return Page();
         }
-        TempData["Success"] = $"Agent \"{result.Value!.Name}\" gespeichert.";
+        TempData["Success"] = _l["agents.saved", result.Value!.Name].Value;
         return RedirectToPage("Detail", new { id = result.Value.Id });
     }
 
@@ -71,7 +74,7 @@ public class EditModel : PageModel
     {
         var result = await _agents.Delete(Id ?? 0);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"Agent \"{result.Value!.Name}\" gelöscht." : result.Message;
+            result.IsSuccess ? _l["agents.deleted", result.Value!.Name].Value : result.Message;
         return RedirectToPage("Index");
     }
 
@@ -79,7 +82,7 @@ public class EditModel : PageModel
     {
         var result = await _agents.ResetHostKey(Id ?? 0);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? "Host-Key zurückgesetzt – er wird beim nächsten Abruf neu übernommen." : result.Message;
+            result.IsSuccess ? _l["agents.hostKeyReset"].Value : result.Message;
         return RedirectToPage("Edit", new { id = Id });
     }
 

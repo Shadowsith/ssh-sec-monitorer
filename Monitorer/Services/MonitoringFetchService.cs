@@ -13,9 +13,12 @@ public class MonitoringFetchService
     private readonly SshFetchService _ssh;
     private readonly SshCredentialService _credentials;
     private readonly LocalMonitoringSource _local;
+    private readonly Microsoft.Extensions.Localization.IStringLocalizer _l;
 
-    public MonitoringFetchService(SshFetchService ssh, SshCredentialService credentials, LocalMonitoringSource local)
+    public MonitoringFetchService(SshFetchService ssh, SshCredentialService credentials, LocalMonitoringSource local,
+        Microsoft.Extensions.Localization.IStringLocalizer l)
     {
+        _l = l;
         _ssh = ssh;
         _credentials = credentials;
         _local = local;
@@ -27,7 +30,7 @@ public class MonitoringFetchService
             return await _local.Read(agent, ct);
 
         var secrets = (agent.SshCredentialId is { } credentialId ? await _credentials.GetSecrets(credentialId) : null)
-                      ?? throw new InvalidOperationException("SSH-Zugang nicht gefunden.");
+                      ?? throw new InvalidOperationException(_l["credentials.notFoundShort"].Value);
         return await _ssh.Download(agent, secrets, ct);
     }
 }

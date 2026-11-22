@@ -1,13 +1,13 @@
 @page "{id:int?}"
 @model Monitorer.Pages.Alerts.EditModel
 @{
-    ViewData["Title"] = Model.IsNew ? "Alarm-Regel hinzufügen" : "Alarm-Regel bearbeiten";
+    ViewData["Title"] = Model.IsNew ? L["alerts.add"] : L["alerts.edit"];
     var agentScenarios = string.Join(",", AlertScenarios.All.Where(AlertScenarios.UsesAgent));
     var containerScenarios = string.Join(",", AlertScenarios.All.Where(AlertScenarios.UsesContainerPattern));
 }
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <h1 class="h3 mb-0">@ViewData["Title"]</h1>
-    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>@L["common.back"]</a>
 </div>
 @if (Model.ErrorMessage is not null)
 {
@@ -17,94 +17,94 @@
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-6">
-                <label asp-for="Input.Name" class="form-label">Name</label>
+                <label asp-for="Input.Name" class="form-label">@L["common.name"]</label>
                 <input asp-for="Input.Name" class="form-control" required maxlength="100" />
             </div>
             <div class="col-md-6">
-                <label asp-for="Input.Scenario" class="form-label">Szenario – wann alarmieren?</label>
+                <label asp-for="Input.Scenario" class="form-label">@L["alerts.scenarioLabel"]</label>
                 <select asp-for="Input.Scenario" class="form-select" data-toggle-group="scenario">
                     @foreach (var scenario in AlertScenarios.All)
                     {
-                        <option value="@scenario">@AlertScenarios.DisplayName(scenario)</option>
+                        <option value="@scenario">@L[AlertScenarios.NameKey(scenario)]</option>
                     }
                 </select>
             </div>
             @foreach (var scenario in AlertScenarios.All)
             {
                 <div class="col-12" data-show-for="scenario" data-show-value="@scenario">
-                    <div class="form-text mt-0"><i class="bi bi-info-circle me-1"></i>@AlertScenarios.Description(scenario)</div>
+                    <div class="form-text mt-0"><i class="bi bi-info-circle me-1"></i>@L[AlertScenarios.DescriptionKey(scenario)]</div>
                 </div>
             }
 
-            <div class="col-12"><hr class="my-1" /><div class="fw-semibold">Gilt für</div></div>
+            <div class="col-12"><hr class="my-1" /><div class="fw-semibold">@L["alerts.appliesTo"]</div></div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@agentScenarios">
-                <label asp-for="Input.AgentId" class="form-label">VM / Agent</label>
+                <label asp-for="Input.AgentId" class="form-label">@L["alerts.agent"]</label>
                 <select asp-for="Input.AgentId" asp-items="Model.Agents" class="form-select">
-                    <option value="">Alle VMs</option>
+                    <option value="">@L["alerts.allVmsOption"]</option>
                 </select>
             </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.LiveCheckDown">
-                <label asp-for="Input.LiveCheckId" class="form-label">Live-Check</label>
+                <label asp-for="Input.LiveCheckId" class="form-label">@L["alerts.liveCheck"]</label>
                 <select asp-for="Input.LiveCheckId" asp-items="Model.LiveChecks" class="form-select">
-                    <option value="">Alle Live-Checks</option>
+                    <option value="">@L["alerts.allLiveChecksOption"]</option>
                 </select>
             </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@containerScenarios">
-                <label asp-for="Input.ContainerPattern" class="form-label">Container (Name, Platzhalter erlaubt)</label>
-                <input asp-for="Input.ContainerPattern" class="form-control font-monospace" placeholder="leer = alle, z. B. shop-*; postgres" />
+                <label asp-for="Input.ContainerPattern" class="form-label">@L["alerts.containerPattern"]</label>
+                <input asp-for="Input.ContainerPattern" class="form-control font-monospace" placeholder="@L["alerts.containerPatternPlaceholder"]" />
             </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.AgentStale">
-                <label asp-for="Input.ThresholdMinutes" class="form-label">Alarm, wenn die monitoring.json älter ist als (Minuten)</label>
+                <label asp-for="Input.ThresholdMinutes" class="form-label">@L["alerts.threshold"]</label>
                 <input asp-for="Input.ThresholdMinutes" type="number" min="1" max="10080" class="form-control" />
-                <div class="form-text">Sollte deutlich über dem Schreibintervall des Agents + Abfrageintervall liegen.</div>
+                <div class="form-text">@L["alerts.thresholdHint"]</div>
             </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.AgentStatus">
-                <label asp-for="Input.MinStatus" class="form-label">Alarm ab Status</label>
+                <label asp-for="Input.MinStatus" class="form-label">@L["alerts.minStatus"]</label>
                 <select asp-for="Input.MinStatus" class="form-select">
-                    <option value="@MonitorStatus.Warning">Warnung</option>
-                    <option value="@MonitorStatus.Critical">Kritisch</option>
+                    <option value="@MonitorStatus.Warning">@L["status.warning"]</option>
+                    <option value="@MonitorStatus.Critical">@L["status.critical"]</option>
                 </select>
             </div>
             <div class="col-12" data-show-for="scenario" data-show-value="@AlertScenarios.ContainerDown">
                 <div class="form-check form-switch">
                     <input asp-for="Input.IgnoreCleanExit" class="form-check-input" role="switch" />
-                    <label asp-for="Input.IgnoreCleanExit" class="form-check-label">Sauber beendete Container (Exit-Code 0) und angelegte / pausierte ignorieren</label>
+                    <label asp-for="Input.IgnoreCleanExit" class="form-check-label">@L["alerts.ignoreCleanExit"]</label>
                 </div>
             </div>
 
-            <div class="col-12"><hr class="my-1" /><div class="fw-semibold">Benachrichtigung</div></div>
+            <div class="col-12"><hr class="my-1" /><div class="fw-semibold">@L["alerts.notification"]</div></div>
             <div class="col-sm-6 col-lg-3">
-                <label asp-for="Input.DelayMinutes" class="form-label">Verzögerung (Minuten)</label>
+                <label asp-for="Input.DelayMinutes" class="form-label">@L["alerts.delay"]</label>
                 <input asp-for="Input.DelayMinutes" type="number" min="0" max="1440" class="form-control" required />
-                <div class="form-text">So lange muss der Zustand anhalten, bevor die erste Mail kommt. 0 = sofort.</div>
+                <div class="form-text">@L["alerts.delayHint"]</div>
             </div>
             <div class="col-sm-6 col-lg-3">
-                <label asp-for="Input.RepeatMinutes" class="form-label">Erneut senden alle (Minuten)</label>
+                <label asp-for="Input.RepeatMinutes" class="form-label">@L["alerts.repeat"]</label>
                 <input asp-for="Input.RepeatMinutes" type="number" min="0" max="10080" class="form-control" required />
-                <div class="form-text">Erinnerung, solange sich am Zustand nichts ändert. 0 = nur einmal.</div>
+                <div class="form-text">@L["alerts.repeatHint"]</div>
             </div>
             <div class="col-lg-6">
-                <label asp-for="Input.Recipients" class="form-label">Empfänger</label>
-                <input asp-for="Input.Recipients" class="form-control" placeholder="leer = Standard-Empfänger (Mail:Recipients); mehrere mit ; trennen" />
+                <label asp-for="Input.Recipients" class="form-label">@L["alerts.recipients"]</label>
+                <input asp-for="Input.Recipients" class="form-control" placeholder="@L["alerts.recipientsPlaceholder"]" />
             </div>
             <div class="col-12 d-flex flex-wrap gap-4">
                 <div class="form-check form-switch">
                     <input asp-for="Input.NotifyRecovery" class="form-check-input" role="switch" />
-                    <label asp-for="Input.NotifyRecovery" class="form-check-label">Entwarnung senden, wenn der Zustand behoben ist</label>
+                    <label asp-for="Input.NotifyRecovery" class="form-check-label">@L["alerts.notifyRecovery"]</label>
                 </div>
                 <div class="form-check form-switch">
                     <input asp-for="Input.Enabled" class="form-check-input" role="switch" />
-                    <label asp-for="Input.Enabled" class="form-check-label">Regel aktiv</label>
+                    <label asp-for="Input.Enabled" class="form-check-label">@L["alerts.ruleEnabled"]</label>
                 </div>
             </div>
         </div>
     </div>
     <div class="card-footer d-flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>@L["common.save"]</button>
         @if (!Model.IsNew)
         {
             <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
-                    data-confirm="Alarm-Regel wirklich löschen?"><i class="bi bi-trash me-1"></i>Löschen</button>
+                    data-confirm="@L["alerts.deleteConfirm"]"><i class="bi bi-trash me-1"></i>@L["common.delete"]</button>
         }
     </div>
 </form>

@@ -1,48 +1,48 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Übersicht";
+    ViewData["Title"] = L["nav.overview"];
 }
 <div data-live="agents livechecks alerts">
-    <h1 class="h3 mb-3">Übersicht</h1>
+    <h1 class="h3 mb-3">@L["nav.overview"]</h1>
 
     <div class="d-flex flex-wrap gap-3 mb-4">
-        <partial name="_SummaryTile" model='("OK", Model.CountByStatus(MonitorStatus.Ok, MonitorStatus.Up), "success", "bi-check-circle")' />
-        <partial name="_SummaryTile" model='("Warnung", Model.CountByStatus(MonitorStatus.Warning, MonitorStatus.Degraded), "warning", "bi-exclamation-triangle")' />
-        <partial name="_SummaryTile" model='("Kritisch", Model.CountByStatus(MonitorStatus.Critical), "danger", "bi-x-octagon")' />
-        <partial name="_SummaryTile" model='("Nicht erreichbar", Model.CountByStatus(MonitorStatus.Unreachable, MonitorStatus.Down), "danger", "bi-plug")' />
-        <partial name="_SummaryTile" model='("Aktive Alarme", Model.ActiveAlerts, Model.ActiveAlerts > 0 ? "danger" : "secondary", "bi-bell")' />
+        <partial name="_SummaryTile" model='(L["status.ok"].Value, Model.CountByStatus(MonitorStatus.Ok, MonitorStatus.Up), "success", "bi-check-circle")' />
+        <partial name="_SummaryTile" model='(L["status.warning"].Value, Model.CountByStatus(MonitorStatus.Warning, MonitorStatus.Degraded), "warning", "bi-exclamation-triangle")' />
+        <partial name="_SummaryTile" model='(L["status.critical"].Value, Model.CountByStatus(MonitorStatus.Critical), "danger", "bi-x-octagon")' />
+        <partial name="_SummaryTile" model='(L["status.unreachable"].Value, Model.CountByStatus(MonitorStatus.Unreachable, MonitorStatus.Down), "danger", "bi-plug")' />
+        <partial name="_SummaryTile" model='(L["overview.activeAlerts"].Value, Model.ActiveAlerts, Model.ActiveAlerts > 0 ? "danger" : "secondary", "bi-bell")' />
     </div>
 
     @if (Model.Overview.Agents.Count == 0 && Model.Overview.LiveChecks.Count == 0)
     {
         <div class="alert alert-info">
-            Noch keine Agents oder Live-Checks angelegt.
+            @L["overview.empty"]
             @if (User.IsAdmin())
             {
-                <a asp-page="/Agents/Edit" class="alert-link">Agent hinzufügen</a>
+                <a asp-page="/Agents/Edit" class="alert-link">@L["agents.add"]</a>
             }
         </div>
     }
 
     <div class="row g-3">
         <div class="col-12 col-xl-4">
-            <partial name="_ChartCard" model='("Status", "chart-status", "Agents und Live-Checks nach Status", "/Agents/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartStatus"].Value, "chart-status", L["overview.chartStatusHint"].Value, "/Agents/Index")' />
         </div>
         <div class="col-12 col-xl-8">
-            <partial name="_ChartCard" model='("Auslastung je VM", "chart-usage", "CPU, RAM und vollste Festplatte – sortiert nach höchster Auslastung", "/Agents/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartUsage"].Value, "chart-usage", L["overview.chartUsageHint"].Value, "/Agents/Index")' />
         </div>
         <div class="col-12 col-xl-6">
-            <partial name="_ChartCard" model='("CPU-Verlauf", "chart-cpu-history", "CPU in % je VM aus der monitoring.json", "/Agents/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartCpu"].Value, "chart-cpu-history", L["overview.chartCpuHint"].Value, "/Agents/Index")' />
         </div>
         <div class="col-12 col-xl-6">
-            <partial name="_ChartCard" model='("RAM-Verlauf", "chart-memory-history", "RAM in % je VM aus der monitoring.json", "/Agents/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartMemory"].Value, "chart-memory-history", L["overview.chartMemoryHint"].Value, "/Agents/Index")' />
         </div>
         <div class="col-12 col-xl-6">
-            <partial name="_ChartCard" model='("Container je VM", "chart-containers", "laufend, mit Problem, gestoppt, nicht mehr vorhanden", "/Docker/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartContainers"].Value, "chart-containers", L["overview.chartContainersHint"].Value, "/Docker/Index")' />
         </div>
         <div class="col-12 col-xl-6">
-            <partial name="_ChartCard" model='("Antwortzeiten Live-Checks", "chart-live-checks", "letzte Antwortzeit in ms, ausgefallene rot", "/LiveChecks/Index")' />
+            <partial name="_ChartCard" model='(L["overview.chartLiveChecks"].Value, "chart-live-checks", L["overview.chartLiveChecksHint"].Value, "/LiveChecks/Index")' />
         </div>
     </div>
 

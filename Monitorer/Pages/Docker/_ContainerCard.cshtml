@@ -26,14 +26,14 @@
                 <partial name="_PortList" model="ports" />
             }
             <div class="d-flex flex-wrap justify-content-between gap-2 small text-body-secondary mt-auto pt-2">
-                <span>@(Model.IsRunning ? "läuft " + Model.StartedAtUtc.ToSinceString() : $"Exit-Code {Model.ExitCode?.ToString() ?? "–"}")</span>
-                <span>@(Model.RestartCount ?? 0) Neustarts</span>
+                <span>@(Model.IsRunning ? L["containers.runningSince", Model.StartedAtUtc.ToSinceString(L)] : L["containers.exitCode", Model.ExitCode?.ToString() ?? "–"])</span>
+                <span>@L["containers.restarts", Model.RestartCount ?? 0]</span>
             </div>
             @if (Model.Logs is { } logs)
             {
                 <div class="d-flex gap-1 mt-2">
-                    <span class="badge text-bg-@(logs.ErrorCount > 0 ? "danger" : "light")">@logs.ErrorCount Fehler</span>
-                    <span class="badge text-bg-@(logs.WarningCount > 0 ? "warning" : "light")">@logs.WarningCount Warn.</span>
+                    <span class="badge text-bg-@(logs.ErrorCount > 0 ? "danger" : "light")">@L["containers.errors", logs.ErrorCount]</span>
+                    <span class="badge text-bg-@(logs.WarningCount > 0 ? "warning" : "light")">@L["containers.warnings", logs.WarningCount]</span>
                 </div>
             }
         </div>

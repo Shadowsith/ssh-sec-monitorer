@@ -7,8 +7,8 @@
 }
 <div class="card shadow-sm">
     <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span class="fw-semibold"><i class="bi bi-boxes me-2"></i>Container
-            <span class="text-body-secondary fw-normal">(@Model.Containers.Count(c => c.IsRunning) / @Model.Containers.Count laufen)</span></span>
+        <span class="fw-semibold"><i class="bi bi-boxes me-2"></i>@L["containers.title"]
+            <span class="text-body-secondary fw-normal">@L["containers.runningCount", Model.Containers.Count(c => c.IsRunning), Model.Containers.Count]</span></span>
         @if (Model.Engine?.GetValueOrDefault("version") is string engineVersion)
         {
             <span class="small text-body-secondary">Docker @engineVersion</span>
@@ -16,15 +16,15 @@
     </div>
     @if (!Model.Available)
     {
-        <div class="alert alert-warning m-3 mb-0">Docker nicht erreichbar: @Model.Error</div>
+        <div class="alert alert-warning m-3 mb-0">@L["containers.dockerUnavailable", Model.Error ?? ""]</div>
     }
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead>
             <tr>
-                <th>Name</th>
+                <th>@L["common.name"]</th>
                 <th>Image</th>
-                <th>Status</th>
+                <th>@L["common.status"]</th>
                 @if (showPorts)
                 {
                     <th>Ports</th>
@@ -36,7 +36,7 @@
                     <th>Disk I/O</th>
                 }
                 <th class="text-end">Restarts</th>
-                <th class="text-end">Logs (Fehler / Warn.)</th>
+                <th class="text-end">@L["containers.logsColumn"]</th>
                 <th></th>
             </tr>
             </thead>
@@ -93,7 +93,7 @@
                         @if (c.Logs?.Tail.Count > 0)
                         {
                             <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
-                                    data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId" title="Log anzeigen">
+                                    data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId" title="@L["containers.showLog"]">
                                 <i class="bi bi-journal-text"></i>
                             </button>
                         }
@@ -103,7 +103,7 @@
                 {
                     <tr class="collapse" id="@collapseId">
                         <td colspan="@columns" class="bg-body-tertiary">
-                            <div class="small text-body-secondary mb-1">Letzte @c.Logs.Tail.Count Zeilen (Fenster @(c.Logs.WindowSeconds) s)</div>
+                            <div class="small text-body-secondary mb-1">@L["containers.logTail", c.Logs.Tail.Count, c.Logs.WindowSeconds]</div>
                             <pre class="log-tail mb-0">@string.Join("\n", c.Logs.Tail)</pre>
                         </td>
                     </tr>
@@ -111,7 +111,7 @@
             }
             @if (Model.Containers.Count == 0)
             {
-                <tr><td colspan="@columns" class="text-center text-body-secondary py-4">Keine Container</td></tr>
+                <tr><td colspan="@columns" class="text-center text-body-secondary py-4">@L["containers.none"]</td></tr>
             }
             </tbody>
         </table>

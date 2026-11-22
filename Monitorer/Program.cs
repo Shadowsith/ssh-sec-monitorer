@@ -1,9 +1,12 @@
+using System.Globalization;
 using Dapper;
 using FluentMigrator.Runner;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Localization;
 using Microsoft.OpenApi.Models;
 using Monitorer;
 using Monitorer.BackgroundServices;
@@ -44,6 +47,26 @@ try
     var authSettings = config.GetSection("Auth").Get<AuthSettings>() ?? new AuthSettings();
     var dpSettings = config.GetSection("DataProtection").Get<DataProtectionSettings>() ?? new DataProtectionSettings();
     var swaggerSettings = config.GetSection("Swagger").Get<SwaggerSettings>() ?? new SwaggerSettings();
+    var localizationSettings = config.GetSection("Localization").Get<LocalizationSettings>() ?? new LocalizationSettings();
+
+    // ---------------------------------------------------------------- localization (i18n/<language>.json)
+    var localizer = JsonStringLocalizer.Load(localizationSettings.DefaultLanguage);
+    builder.Services.AddSingleton(localizer);
+    builder.Services.AddSingleton<IStringLocalizer>(localizer);
+    var defaultCulture = CultureInfo.GetCultureInfo(localizer.DefaultLanguage);
+    // background work (polls, live checks, alert mails) has no request: it runs in the default language
+    CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
+    CultureInfo.DefaultThreadCurrentUICulture = defaultCulture;
+    builder.Services.Configure<RequestLocalizationOptions>(o =>
+    {
+        var cultures = localizer.Languages.Select(CultureInfo.GetCultureInfo).ToList();
+        o.DefaultRequestCulture = new RequestCulture(defaultCulture);
+        o.SupportedCultures = cultures;
+        o.SupportedUICultures = cultures;
+        // only the language cookie (set on /Language) and Accept-Language, no ?culture= query
+        o.RequestCultureProviders = o.RequestCultureProviders
+            .Where(p => p is not QueryStringRequestCultureProvider).ToList();
+    });
 
     // ---------------------------------------------------------------- database
     builder.Services.AddSingleton(new DbConnectionFactory(dbConfig.ConnectionString));
@@ -200,6 +223,9 @@ try
     // ---------------------------------------------------------------- pipeline
     var app = builder.Build();
 
+    foreach (var (language, key) in localizer.MissingKeys())
+        Log.Warning("Translation {Key} missing in i18n/{Language}.json - the default language is used", key, language);
+
     app.MigrateDatabase();
     await app.SeedInitialAdmin();
 
@@ -212,6 +238,7 @@ try
     app.UseForwardedHeaders(forwardedOptions);
 
     app.UseSerilogRequestLogging();
+    app.UseRequestLocalization();
     if (!app.Environment.IsDevelopment())
     {
         app.UseExceptionHandler("/Error");

@@ -8,7 +8,7 @@ namespace Monitorer.Middleware;
 /// </summary>
 public class SetupRedirectHandler
 {
-    private static readonly string[] AlwaysAllowed = ["/Setup", "/Error", "/api/setup", "/api/health", "/lib", "/css", "/js", "/favicon.ico"];
+    private static readonly string[] AlwaysAllowed = ["/Setup", "/Error", "/Language", "/api/setup", "/api/health", "/lib", "/css", "/js", "/favicon.ico"];
 
     private readonly RequestDelegate _next;
 

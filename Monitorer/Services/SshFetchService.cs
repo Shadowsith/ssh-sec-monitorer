@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Monitorer.Data;
 using Monitorer.Data.Db;
@@ -17,8 +18,13 @@ namespace Monitorer.Services;
 public class SshFetchService
 {
     private readonly MonitoringSettings _settings;
+    private readonly IStringLocalizer _l;
 
-    public SshFetchService(IOptions<MonitoringSettings> settings) => _settings = settings.Value;
+    public SshFetchService(IOptions<MonitoringSettings> settings, IStringLocalizer l)
+    {
+        _settings = settings.Value;
+        _l = l;
+    }
 
     public async Task<MonitoringFetchResultDto> Download(AgentDb agent, SshSecretsDto secrets, CancellationToken ct)
     {
@@ -67,12 +73,13 @@ public class SshFetchService
             using (client)
             {
                 result.HostKeyFingerprint = fingerprint();
-                result.Add("Host erreichbar", true, $"{host}:{port} antwortet.");
-                result.Add("Host-Key", true, expectedFingerprint is null
-                    ? $"SHA256:{result.HostKeyFingerprint} – noch nicht gepinnt, wird beim ersten Abruf übernommen."
-                    : $"SHA256:{result.HostKeyFingerprint} – stimmt mit dem gepinnten Host-Key überein.");
-                result.Add("Anmeldung", true, $"Als {secrets.UserName} angemeldet ({(secrets.AuthType == SshAuthTypes.Key ? "Schlüssel" : "Passwort")}).");
-                result.Add("SFTP", true, $"SFTP verfügbar, Startverzeichnis {client.WorkingDirectory}.");
+                result.Add(_l["sshTest.stepHost"].Value, true, _l["sshTest.hostOk", host, port].Value);
+                result.Add(_l["sshTest.stepHostKey"].Value, true, expectedFingerprint is null
+                    ? _l["sshTest.hostKeyNew", result.HostKeyFingerprint ?? ""].Value
+                    : _l["sshTest.hostKeyMatch", result.HostKeyFingerprint ?? ""].Value);
+                result.Add(_l["sshTest.stepLogin"].Value, true, _l["sshTest.loginOk", secrets.UserName,
+                    _l[secrets.AuthType == SshAuthTypes.Key ? "credentials.authKey" : "user.password"].Value].Value);
+                result.Add("SFTP", true, _l["sshTest.sftpOk", client.WorkingDirectory].Value);
 
                 if (!string.IsNullOrWhiteSpace(remotePath))
                 {
@@ -81,16 +88,15 @@ public class SshFetchService
                         var content = await ReadFile(client, remotePath.Trim(), ct);
                         var fileError = validateFile(content);
                         result.Add("monitoring.json", fileError is null,
-                            fileError ?? $"{remotePath} gelesen ({Encoding.UTF8.GetByteCount(content):N0} Bytes), Format gültig.");
+                            fileError ?? _l["sshTest.fileOk", remotePath, Encoding.UTF8.GetByteCount(content).ToString("N0", System.Globalization.CultureInfo.CurrentCulture)].Value);
                     }
                     catch (SftpPathNotFoundException)
                     {
-                        result.Add("monitoring.json", false,
-                            $"{remotePath} nicht gefunden. Läuft der Agent? Bei chroot den Pfad relativ zum Chroot angeben.");
+                        result.Add("monitoring.json", false, _l["sshTest.fileNotFound", remotePath].Value);
                     }
                     catch (SftpPermissionDeniedException)
                     {
-                        result.Add("monitoring.json", false, $"Keine Leserechte auf {remotePath} für {secrets.UserName}.");
+                        result.Add("monitoring.json", false, _l["sshTest.fileNoPermission", remotePath, secrets.UserName].Value);
                     }
                     catch (InvalidOperationException ex)
                     {
@@ -119,7 +125,7 @@ public class SshFetchService
         }
         catch (Exception ex) when (ex is SshException or ArgumentException or InvalidOperationException)
         {
-            return $"Der private Schlüssel kann nicht gelesen werden: {ex.Message}";
+            return _l["credentials.keyUnreadable", ex.Message].Value;
         }
     }
 
@@ -169,7 +175,8 @@ public class SshFetchService
                                               && fingerprint != expectedFingerprint)
         {
             client.Dispose();
-            throw new HostKeyMismatchException(expectedFingerprint, fingerprint);
+            throw new HostKeyMismatchException(expectedFingerprint, fingerprint,
+                _l["sshTest.hostKeyMismatch", expectedFingerprint, fingerprint].Value);
         }
         catch
         {
@@ -181,48 +188,46 @@ public class SshFetchService
 
     private async Task<string> ReadFile(SftpClient client, string path, CancellationToken ct)
     {
-        using var buffer = new LimitedMemoryStream(_settings.MaxFileBytes);
+        using var buffer = new LimitedMemoryStream(_settings.MaxFileBytes, _l["fetch.fileTooLarge", "monitoring.json", _settings.MaxFileBytes].Value);
         await Task.Run(() =>
         {
             // check the size first, so an oversized file is not transferred at all
             var size = client.GetAttributes(path).Size;
             if (size > _settings.MaxFileBytes)
-                throw new InvalidOperationException($"monitoring.json ist {size} Bytes groß (max. {_settings.MaxFileBytes}).");
+                throw new InvalidOperationException(_l["fetch.fileTooLarge", "monitoring.json", _settings.MaxFileBytes].Value);
             client.DownloadFile(path, buffer);
         }, ct);
         return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
-    private static void ExplainConnectError(SshConnectionTestResultDto result, Exception ex, string host, int port,
+    private void ExplainConnectError(SshConnectionTestResultDto result, Exception ex, string host, int port,
         string? expectedFingerprint)
     {
         switch (ex)
         {
             case HostKeyMismatchException mismatch:
-                result.Add("Host erreichbar", true, $"{host}:{port} antwortet.");
-                result.Add("Host-Key", false,
-                    $"Host-Key passt nicht! Erwartet SHA256:{mismatch.Expected}, erhalten SHA256:{mismatch.Received}. " +
-                    "VM neu installiert? Sonst Vorsicht – möglicher Man-in-the-Middle.");
+                result.Add(_l["sshTest.stepHost"].Value, true, _l["sshTest.hostOk", host, port].Value);
+                result.Add(_l["sshTest.stepHostKey"].Value, false, _l["sshTest.hostKeyMismatch", mismatch.Expected, mismatch.Received].Value);
                 break;
             case SshAuthenticationException:
-                result.Add("Host erreichbar", true, $"{host}:{port} antwortet.");
-                result.Add("Host-Key", true, expectedFingerprint is null ? "noch nicht gepinnt" : "stimmt überein");
-                result.Add("Anmeldung", false, $"Anmeldung abgelehnt: {ex.Message} – Benutzer, Schlüssel bzw. authorized_keys prüfen.");
+                result.Add(_l["sshTest.stepHost"].Value, true, _l["sshTest.hostOk", host, port].Value);
+                result.Add(_l["sshTest.stepHostKey"].Value, true, _l[expectedFingerprint is null ? "sshTest.hostKeyNotPinned" : "sshTest.hostKeyMatchShort"].Value);
+                result.Add(_l["sshTest.stepLogin"].Value, false, _l["sshTest.loginFailed", ex.Message].Value);
                 break;
             case SshConnectionException when ex.Message.Contains("subsystem", StringComparison.OrdinalIgnoreCase):
-                result.Add("Host erreichbar", true, $"{host}:{port} antwortet.");
-                result.Add("SFTP", false, "SFTP ist auf dem Host nicht verfügbar (Subsystem sftp in sshd_config).");
+                result.Add(_l["sshTest.stepHost"].Value, true, _l["sshTest.hostOk", host, port].Value);
+                result.Add("SFTP", false, _l["sshTest.sftpUnavailable"].Value);
                 break;
             case SocketException or SshOperationTimeoutException or OperationCanceledException:
-                result.Add("Host erreichbar", false, $"{host}:{port} nicht erreichbar: {ex.Message}");
+                result.Add(_l["sshTest.stepHost"].Value, false, _l["sshTest.hostUnreachable", host, port, ex.Message].Value);
                 break;
             default:
-                result.Add("Verbindung", false, ex.Message);
+                result.Add(_l["sshTest.stepConnection"].Value, false, ex.Message);
                 break;
         }
     }
 
-    private static List<AuthenticationMethod> CreateAuthenticationMethods(SshSecretsDto secrets, List<IDisposable> disposables)
+    private List<AuthenticationMethod> CreateAuthenticationMethods(SshSecretsDto secrets, List<IDisposable> disposables)
     {
         var methods = new List<AuthenticationMethod>();
         if (secrets.AuthType == SshAuthTypes.Key && !string.IsNullOrEmpty(secrets.PrivateKey))
@@ -240,7 +245,7 @@ public class SshFetchService
             methods.Add(method);
         }
         if (methods.Count == 0)
-            throw new InvalidOperationException("Für die SSH-Zugangsdaten ist kein Schlüssel / Passwort hinterlegt.");
+            throw new InvalidOperationException(_l["credentials.noSecret"].Value);
         return methods;
     }
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.WebSockets;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Db;
 using Monitorer.Data.Dto;
@@ -21,11 +22,13 @@ public class LiveCheckRunnerService
     private readonly IHttpClientFactory _httpClients;
     private readonly PollScheduler _scheduler;
     private readonly LiveUpdateService _live;
+    private readonly IStringLocalizer _l;
     private readonly ILogger<LiveCheckRunnerService> _logger;
 
-    public LiveCheckRunnerService(LiveCheckRepository repo, SecretService secrets,
-        IHttpClientFactory httpClients, PollScheduler scheduler, LiveUpdateService live, ILogger<LiveCheckRunnerService> logger)
+    public LiveCheckRunnerService(LiveCheckRepository repo, SecretService secrets, IHttpClientFactory httpClients,
+        PollScheduler scheduler, LiveUpdateService live, IStringLocalizer l, ILogger<LiveCheckRunnerService> logger)
     {
+        _l = l;
         _live = live;
         _scheduler = scheduler;
         _repo = repo;
@@ -52,9 +55,9 @@ public class LiveCheckRunnerService
     {
         var check = await _repo.SelectById(id);
         if (check is null)
-            return ServiceResult<LiveCheckDto>.NotFound($"Live-Check {id} nicht gefunden.");
+            return ServiceResult<LiveCheckDto>.NotFound(_l["liveChecks.notFound", id].Value);
         if (!await RunGuarded(check, ct))
-            return ServiceResult<LiveCheckDto>.Locked("Dieser Live-Check läuft gerade schon.");
+            return ServiceResult<LiveCheckDto>.Locked(_l["liveChecks.running"].Value);
         return ServiceResult<LiveCheckDto>.Ok(new LiveCheckDto(check));
     }
 
@@ -108,7 +111,7 @@ public class LiveCheckRunnerService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new LiveCheckResultDto { Status = MonitorStatus.Down, Message = $"Timeout nach {check.TimeoutSeconds} s" };
+            return new LiveCheckResultDto { Status = MonitorStatus.Down, Message = _l["liveChecks.timeout", check.TimeoutSeconds].Value };
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
@@ -126,11 +129,11 @@ public class LiveCheckRunnerService
         var ok = check.ExpectedStatusCode is null ? code < 400 : code == check.ExpectedStatusCode;
         if (!ok)
             throw new InvalidOperationException($"HTTP {code} {response.ReasonPhrase}"
-                + (check.ExpectedStatusCode is null ? "" : $" (erwartet {check.ExpectedStatusCode})"));
+                + (check.ExpectedStatusCode is null ? "" : " " + _l["liveChecks.expected", check.ExpectedStatusCode].Value));
         return (MonitorStatus.Up, $"HTTP {code}");
     }
 
-    private static async Task<(string Status, string Message)> CheckWebSocket(LiveCheckDb check, CancellationToken ct)
+    private async Task<(string Status, string Message)> CheckWebSocket(LiveCheckDb check, CancellationToken ct)
     {
         using var socket = new ClientWebSocket();
         socket.Options.CollectHttpResponseDetails = true;
@@ -144,10 +147,10 @@ public class LiveCheckRunnerService
         {
             // the service answered the handshake (e.g. 401 before auth) -> online, but rejects the check
             var code = (int)socket.HttpStatusCode;
-            return (MonitorStatus.Degraded, $"HTTP {code} statt 101 beim WebSocket-Handshake");
+            return (MonitorStatus.Degraded, _l["liveChecks.wsRejected", code].Value);
         }
         await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "monitor check", ct);
-        return (MonitorStatus.Up, "WebSocket-Handshake erfolgreich");
+        return (MonitorStatus.Up, _l["liveChecks.wsOk"].Value);
     }
 
     private async Task<(string Status, string Message)> CheckMqtt(LiveCheckDb check, CancellationToken ct)
@@ -174,6 +177,6 @@ public class LiveCheckRunnerService
         using var client = new MqttFactory().CreateMqttClient();
         var result = await client.ConnectAsync(builder.Build(), ct);
         await client.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().Build(), CancellationToken.None);
-        return (MonitorStatus.Up, $"MQTT verbunden ({result.ResultCode})");
+        return (MonitorStatus.Up, _l["liveChecks.mqttOk", result.ResultCode].Value);
     }
 }

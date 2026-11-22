@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
 using Monitorer.Extensions;
@@ -15,9 +16,11 @@ public class EditModel : PageModel
     private readonly AlertRuleService _rules;
     private readonly AgentService _agents;
     private readonly LiveCheckService _liveChecks;
+    private readonly IStringLocalizer _l;
 
-    public EditModel(AlertRuleService rules, AgentService agents, LiveCheckService liveChecks)
+    public EditModel(AlertRuleService rules, AgentService agents, LiveCheckService liveChecks, IStringLocalizer l)
     {
+        _l = l;
         _rules = rules;
         _agents = agents;
         _liveChecks = liveChecks;
@@ -63,7 +66,7 @@ public class EditModel : PageModel
             await LoadLists();
             return Page();
         }
-        TempData["Success"] = $"Alarm-Regel \"{result.Value!.Name}\" gespeichert.";
+        TempData["Success"] = _l["alerts.saved", result.Value!.Name].Value;
         return RedirectToPage("Index");
     }
 
@@ -71,14 +74,14 @@ public class EditModel : PageModel
     {
         var result = await _rules.Delete(Id ?? 0);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"Alarm-Regel \"{result.Value!.Name}\" gelöscht." : result.Message;
+            result.IsSuccess ? _l["alerts.deleted", result.Value!.Name].Value : result.Message;
         return RedirectToPage("Index");
     }
 
     private async Task LoadLists()
     {
         Agents = ((await _agents.GetAll()).Value ?? [])
-            .Select(a => new SelectListItem($"{a.Name} ({a.Target()})", a.Id.ToString()))
+            .Select(a => new SelectListItem($"{a.Name} ({a.Target(_l)})", a.Id.ToString()))
             .ToList();
         LiveChecks = ((await _liveChecks.GetAll()).Value ?? [])
             .Select(c => new SelectListItem($"{c.Name} ({c.CheckType})", c.Id.ToString()))

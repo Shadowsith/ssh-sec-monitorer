@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Db;
 using Monitorer.Data.Dto;
@@ -17,10 +18,12 @@ public partial class AgentService
     private readonly SshCredentialRepository _credentials;
     private readonly MonitoringEvaluationService _evaluation;
     private readonly KnownContainerService _known;
+    private readonly IStringLocalizer _l;
 
     public AgentService(AgentRepository repo, AgentSnapshotRepository snapshots, SshCredentialRepository credentials,
-        MonitoringEvaluationService evaluation, KnownContainerService known)
+        MonitoringEvaluationService evaluation, KnownContainerService known, IStringLocalizer l)
     {
+        _l = l;
         _known = known;
         _repo = repo;
         _snapshots = snapshots;
@@ -41,7 +44,7 @@ public partial class AgentService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AgentDto>.NotFound($"Agent {id} nicht gefunden.");
+            return ServiceResult<AgentDto>.NotFound(_l["agents.notFound", id].Value);
         var credential = row.SshCredentialId is { } credentialId ? await _credentials.SelectById(credentialId) : null;
         return ServiceResult<AgentDto>.Ok(new AgentDto(row) { SshCredentialName = credential?.Name ?? "" });
     }
@@ -65,7 +68,7 @@ public partial class AgentService
             }
             catch (JsonException ex)
             {
-                detail.Findings.Add($"monitoring.json kann nicht gelesen werden: {ex.Message}");
+                detail.Findings.Add(_l["agents.unreadable", ex.Message].Value);
             }
             detail.Snapshot.Payload = null;   // the parsed form is enough for the client
         }
@@ -79,7 +82,7 @@ public partial class AgentService
         if (error is not null)
             return ServiceResult<AgentDto>.InvalidValue(error);
         if (await _repo.SelectByName(row.Name) is not null)
-            return ServiceResult<AgentDto>.Conflict("Ein Agent mit diesem Namen existiert bereits.");
+            return ServiceResult<AgentDto>.Conflict(_l["agents.nameExists"].Value);
 
         row.Id = await _repo.Insert(row);
         row.CreatedAt = DateTime.UtcNow;
@@ -90,13 +93,13 @@ public partial class AgentService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AgentDto>.NotFound($"Agent {id} nicht gefunden.");
+            return ServiceResult<AgentDto>.NotFound(_l["agents.notFound", id].Value);
         var error = await Apply(dto, row);
         if (error is not null)
             return ServiceResult<AgentDto>.InvalidValue(error);
         var sameName = await _repo.SelectByName(row.Name);
         if (sameName is not null && sameName.Id != id)
-            return ServiceResult<AgentDto>.Conflict("Ein Agent mit diesem Namen existiert bereits.");
+            return ServiceResult<AgentDto>.Conflict(_l["agents.nameExists"].Value);
 
         await _repo.Update(row);
         return ServiceResult<AgentDto>.Changed(new AgentDto(row));
@@ -106,7 +109,7 @@ public partial class AgentService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AgentDto>.NotFound($"Agent {id} nicht gefunden.");
+            return ServiceResult<AgentDto>.NotFound(_l["agents.notFound", id].Value);
         await _snapshots.Delete(id);
         await _repo.Delete(id);
         return ServiceResult<AgentDto>.Ok(new AgentDto(row));
@@ -117,9 +120,9 @@ public partial class AgentService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<AgentDto>.NotFound($"Agent {id} nicht gefunden.");
+            return ServiceResult<AgentDto>.NotFound(_l["agents.notFound", id].Value);
         if (row.IsLocal())
-            return ServiceResult<AgentDto>.NotAllowed("Lokale Agents haben keinen SSH-Host-Key.");
+            return ServiceResult<AgentDto>.NotAllowed(_l["agents.localNoHostKey"].Value);
         row.HostKeyFingerprint = null;
         await _repo.UpdateHostKeyFingerprint(id, null);
         return ServiceResult<AgentDto>.Changed(new AgentDto(row));
@@ -128,11 +131,11 @@ public partial class AgentService
     private async Task<string?> Apply(AgentDto dto, AgentDb row)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100)
-            return "Name fehlt oder ist zu lang (max. 100 Zeichen).";
+            return _l["validation.nameLength", 100].Value;
         if (dto.PollIntervalSeconds is < 10 or > 86400)
-            return "Abfrageintervall muss zwischen 10 und 86400 Sekunden liegen.";
+            return _l["agents.invalidInterval"].Value;
         if (!AgentConnectionTypes.IsValid(dto.ConnectionType))
-            return "Unbekannter Verbindungstyp.";
+            return _l["agents.invalidConnectionType"].Value;
 
         var error = dto.ConnectionType == AgentConnectionTypes.Local
             ? await ApplyLocal(dto, row)
@@ -152,10 +155,10 @@ public partial class AgentService
     {
         var dir = dto.LocalDir?.Trim() ?? "";
         if (!LocalDirPattern().IsMatch(dir))
-            return "Ordnername: 1–63 Zeichen, nur a–z, 0–9, '-' und '_' (beginnt mit Buchstabe oder Ziffer).";
+            return _l["agents.invalidLocalDir"].Value;
         var existing = await _repo.SelectByLocalDir(dir);
         if (existing is not null && existing.Id != row.Id)
-            return $"Der Ordner '{dir}' wird bereits vom Agent '{existing.Name}' verwendet.";
+            return _l["agents.localDirInUse", dir, existing.Name].Value;
 
         row.LocalDir = dir;
         row.Host = null;
@@ -170,14 +173,14 @@ public partial class AgentService
     {
         var host = dto.Host?.Trim() ?? "";
         if (host.Length is 0 or > 255 || host.Any(char.IsWhiteSpace) || Uri.CheckHostName(host) == UriHostNameType.Unknown)
-            return "Host ist ungültig (Hostname oder IP-Adresse).";
+            return _l["agents.invalidHost"].Value;
         if (dto.Port is null or < 1 or > 65535)
-            return "Port muss zwischen 1 und 65535 liegen.";
+            return _l["validation.port"].Value;
         var remotePath = dto.RemotePath?.Trim() ?? "";
         if (!remotePath.StartsWith('/') || remotePath.Any(c => char.IsControl(c) || c is '"' or '`' or '$'))
-            return "Der Pfad zur monitoring.json muss ein absoluter Linux-Pfad sein.";
+            return _l["agents.invalidRemotePath"].Value;
         if (dto.SshCredentialId is not { } credentialId || await _credentials.SelectById(credentialId) is null)
-            return "Bitte einen gültigen SSH-Zugang auswählen.";
+            return _l["agents.invalidCredential"].Value;
 
         row.Host = host;
         row.Port = dto.Port;

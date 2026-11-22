@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Dto;
 using Monitorer.Services;
@@ -11,8 +12,13 @@ namespace Monitorer.Pages.LiveChecks;
 public class EditModel : PageModel
 {
     private readonly LiveCheckService _checks;
+    private readonly IStringLocalizer _l;
 
-    public EditModel(LiveCheckService checks) => _checks = checks;
+    public EditModel(LiveCheckService checks, IStringLocalizer l)
+    {
+        _checks = checks;
+        _l = l;
+    }
 
     [BindProperty(SupportsGet = true)]
     public int? Id { get; set; }
@@ -44,7 +50,7 @@ public class EditModel : PageModel
             Input.MqttPassword = null;
             return Page();
         }
-        TempData["Success"] = $"Live-Check \"{result.Value!.Name}\" gespeichert.";
+        TempData["Success"] = _l["liveChecks.saved", result.Value!.Name].Value;
         return RedirectToPage("Index");
     }
 
@@ -52,7 +58,7 @@ public class EditModel : PageModel
     {
         var result = await _checks.Delete(Id ?? 0);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"Live-Check \"{result.Value!.Name}\" gelöscht." : result.Message;
+            result.IsSuccess ? _l["liveChecks.deleted", result.Value!.Name].Value : result.Message;
         return RedirectToPage("Index");
     }
 }

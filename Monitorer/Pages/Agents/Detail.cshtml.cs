@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
+using Monitorer.Data;
 using Monitorer.Data.Dto;
 using Monitorer.Data.Result;
 using Monitorer.Extensions;
@@ -15,10 +17,12 @@ public class DetailModel : PageModel
     private readonly AgentService _agents;
     private readonly AgentPollService _poll;
     private readonly KnownContainerService _known;
+    private readonly IStringLocalizer _l;
 
     public DetailModel(AgentService agents, AgentPollService poll, KnownContainerService known,
-        IOptions<MonitoringSettings> settings)
+        IOptions<MonitoringSettings> settings, IStringLocalizer l)
     {
+        _l = l;
         _known = known;
         _agents = agents;
         _poll = poll;
@@ -59,7 +63,7 @@ public class DetailModel : PageModel
             return Forbid();
         var result = await _known.Delete(knownId);
         TempData[result.IsSuccess ? "Success" : "Error"] =
-            result.IsSuccess ? $"Container \"{result.Value!.Name}\" entfernt." : result.Message;
+            result.IsSuccess ? _l["containers.forgotten", result.Value!.Name].Value : result.Message;
         return RedirectToPage(new { id = Id });
     }
 
@@ -73,7 +77,7 @@ public class DetailModel : PageModel
             TempData["Error"] = result.Message;
             return RedirectToPage(new { id = Id });
         }
-        TempData["Success"] = $"Abruf ausgeführt – Status: {result.Value!.Status}.";
+        TempData["Success"] = _l["agents.polled", _l[MonitorStatus.TextKey(result.Value!.Status)].Value].Value;
         return RedirectToPage(new { id = Id });
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Localization;
 using Monitorer.Data;
 using Monitorer.Data.Db;
 using Monitorer.Data.Dto;
@@ -14,10 +15,12 @@ public class SshCredentialService
     private readonly SecretService _secrets;
     private readonly SshFetchService _ssh;
     private readonly MonitoringEvaluationService _evaluation;
+    private readonly IStringLocalizer _l;
 
     public SshCredentialService(SshCredentialRepository repo, AgentRepository agents, SecretService secrets,
-        SshFetchService ssh, MonitoringEvaluationService evaluation)
+        SshFetchService ssh, MonitoringEvaluationService evaluation, IStringLocalizer l)
     {
+        _l = l;
         _evaluation = evaluation;
         _repo = repo;
         _agents = agents;
@@ -37,7 +40,7 @@ public class SshCredentialService
     {
         var row = await _repo.SelectById(id);
         return row is null
-            ? ServiceResult<SshCredentialDto>.NotFound($"SSH-Zugang {id} nicht gefunden.")
+            ? ServiceResult<SshCredentialDto>.NotFound(_l["credentials.notFound", id].Value)
             : ServiceResult<SshCredentialDto>.Ok(new SshCredentialDto(row));
     }
 
@@ -48,7 +51,7 @@ public class SshCredentialService
         if (error is not null)
             return ServiceResult<SshCredentialDto>.InvalidValue(error);
         if (await _repo.SelectByName(row.Name) is not null)
-            return ServiceResult<SshCredentialDto>.Conflict("Ein SSH-Zugang mit diesem Namen existiert bereits.");
+            return ServiceResult<SshCredentialDto>.Conflict(_l["credentials.nameExists"].Value);
 
         row.Id = await _repo.Insert(row);
         row.CreatedAt = row.UpdatedAt = DateTime.UtcNow;
@@ -59,13 +62,13 @@ public class SshCredentialService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<SshCredentialDto>.NotFound($"SSH-Zugang {id} nicht gefunden.");
+            return ServiceResult<SshCredentialDto>.NotFound(_l["credentials.notFound", id].Value);
         var error = Apply(dto, row, isNew: false);
         if (error is not null)
             return ServiceResult<SshCredentialDto>.InvalidValue(error);
         var sameName = await _repo.SelectByName(row.Name);
         if (sameName is not null && sameName.Id != id)
-            return ServiceResult<SshCredentialDto>.Conflict("Ein SSH-Zugang mit diesem Namen existiert bereits.");
+            return ServiceResult<SshCredentialDto>.Conflict(_l["credentials.nameExists"].Value);
 
         await _repo.Update(row);
         row.UpdatedAt = DateTime.UtcNow;
@@ -76,9 +79,9 @@ public class SshCredentialService
     {
         var row = await _repo.SelectById(id);
         if (row is null)
-            return ServiceResult<SshCredentialDto>.NotFound($"SSH-Zugang {id} nicht gefunden.");
+            return ServiceResult<SshCredentialDto>.NotFound(_l["credentials.notFound", id].Value);
         if (await _agents.SelectCountBySshCredentialId(id) > 0)
-            return ServiceResult<SshCredentialDto>.NotAllowed("Der SSH-Zugang wird noch von Agents verwendet.");
+            return ServiceResult<SshCredentialDto>.NotAllowed(_l["credentials.inUse"].Value);
 
         await _repo.Delete(id);
         return ServiceResult<SshCredentialDto>.Ok(new SshCredentialDto(row));
@@ -92,17 +95,17 @@ public class SshCredentialService
     {
         if (string.IsNullOrWhiteSpace(dto.Host) || dto.Host.Trim().Any(char.IsWhiteSpace)
             || Uri.CheckHostName(dto.Host.Trim()) == UriHostNameType.Unknown)
-            return ServiceResult<SshConnectionTestResultDto>.InvalidValue("Bitte einen gültigen Host oder eine IP-Adresse angeben.");
+            return ServiceResult<SshConnectionTestResultDto>.InvalidValue(_l["sshTest.invalidHost"].Value);
         if (dto.Port is < 1 or > 65535)
-            return ServiceResult<SshConnectionTestResultDto>.InvalidValue("Port muss zwischen 1 und 65535 liegen.");
+            return ServiceResult<SshConnectionTestResultDto>.InvalidValue(_l["validation.port"].Value);
         if (string.IsNullOrWhiteSpace(dto.UserName))
-            return ServiceResult<SshConnectionTestResultDto>.InvalidValue("Bitte den SSH-Benutzer angeben.");
+            return ServiceResult<SshConnectionTestResultDto>.InvalidValue(_l["sshTest.userRequired"].Value);
         if (!SshAuthTypes.IsValid(dto.AuthType))
-            return ServiceResult<SshConnectionTestResultDto>.InvalidValue("Ungültige Authentifizierungsart.");
+            return ServiceResult<SshConnectionTestResultDto>.InvalidValue(_l["credentials.invalidAuthType"].Value);
 
         var stored = dto.CredentialId is null ? null : await GetSecrets(dto.CredentialId.Value);
         if (dto.CredentialId is not null && stored is null)
-            return ServiceResult<SshConnectionTestResultDto>.NotFound($"SSH-Zugang {dto.CredentialId} nicht gefunden.");
+            return ServiceResult<SshConnectionTestResultDto>.NotFound(_l["credentials.notFound", dto.CredentialId].Value);
 
         var isKey = dto.AuthType == SshAuthTypes.Key;
         var secrets = new SshSecretsDto
@@ -119,7 +122,7 @@ public class SshCredentialService
         };
         if (isKey && string.IsNullOrWhiteSpace(secrets.PrivateKey) || !isKey && string.IsNullOrEmpty(secrets.Password))
             return ServiceResult<SshConnectionTestResultDto>.InvalidValue(
-                isKey ? "Bitte einen privaten Schlüssel eingeben." : "Bitte ein Passwort eingeben.");
+                _l[isKey ? "sshTest.keyRequired" : "sshTest.passwordRequired"].Value);
 
         // use the fingerprint pinned by an agent on the same host / port, if any
         var fingerprint = string.IsNullOrWhiteSpace(dto.HostKeyFingerprint)
@@ -141,17 +144,17 @@ public class SshCredentialService
         if (string.IsNullOrWhiteSpace(privateKey))
         {
             if (dto.CredentialId is null)
-                return ServiceResult<string>.InvalidValue("Bitte zuerst einen privaten Schlüssel eingeben.");
+                return ServiceResult<string>.InvalidValue(_l["credentials.keyFirst"].Value);
             var stored = await GetSecrets(dto.CredentialId.Value);
             if (stored is null)
-                return ServiceResult<string>.NotFound($"SSH-Zugang {dto.CredentialId} nicht gefunden.");
+                return ServiceResult<string>.NotFound(_l["credentials.notFound", dto.CredentialId].Value);
             if (string.IsNullOrWhiteSpace(stored.PrivateKey))
-                return ServiceResult<string>.InvalidValue("Für diesen SSH-Zugang ist kein Schlüssel gespeichert.");
+                return ServiceResult<string>.InvalidValue(_l["credentials.noStoredKey"].Value);
             (privateKey, passphrase) = (stored.PrivateKey, stored.Passphrase);
         }
         var publicKey = _ssh.DerivePublicKey(privateKey, passphrase, "sshsecmonitorer");
         return publicKey is null
-            ? ServiceResult<string>.InvalidValue("Aus dem Schlüssel lässt sich kein öffentlicher Schlüssel ableiten (Format / Passphrase).")
+            ? ServiceResult<string>.InvalidValue(_l["credentials.noPublicKey"].Value)
             : ServiceResult<string>.Ok(publicKey);
     }
 
@@ -161,14 +164,14 @@ public class SshCredentialService
         {
             var file = _evaluation.Parse(content);
             return file.GeneratedAt is null
-                ? "Datei gelesen, aber ohne Zeitstempel (generated_at)."
+                ? _l["sshTest.fileNoTimestamp"].Value
                 : (DateTime.UtcNow - file.GeneratedAt.Value).TotalMinutes > 10
-                    ? $"Datei gelesen, aber veraltet: zuletzt geschrieben {file.GeneratedAt.Value:yyyy-MM-dd HH:mm} UTC – läuft der Agent?"
+                    ? _l["sshTest.fileStale", file.GeneratedAt.Value.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)].Value
                     : null;
         }
         catch (System.Text.Json.JsonException ex)
         {
-            return $"Datei gelesen, aber keine gültige monitoring.json: {ex.Message}";
+            return _l["sshTest.fileInvalid", ex.Message].Value;
         }
     }
 
@@ -192,17 +195,17 @@ public class SshCredentialService
     private string? Apply(SshCredentialDto dto, SshCredentialDb row, bool isNew)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100)
-            return "Name fehlt oder ist zu lang (max. 100 Zeichen).";
+            return _l["validation.nameLength", 100].Value;
         if (string.IsNullOrWhiteSpace(dto.UserName) || dto.UserName.Trim().Length > 100 || dto.UserName.Any(char.IsWhiteSpace))
-            return "SSH-Benutzername fehlt oder ist ungültig.";
+            return _l["credentials.invalidUserName"].Value;
         if (!SshAuthTypes.IsValid(dto.AuthType))
-            return "Ungültige Authentifizierungsart.";
+            return _l["credentials.invalidAuthType"].Value;
 
         var keyChanged = !string.IsNullOrWhiteSpace(dto.PrivateKey);
         if (dto.AuthType == SshAuthTypes.Key)
         {
             if (!keyChanged && (isNew || row.PrivateKeyEnc is null))
-                return "Bitte einen privaten Schlüssel hinterlegen.";
+                return _l["credentials.keyRequired"].Value;
             if (keyChanged)
             {
                 var keyError = _ssh.ValidatePrivateKey(dto.PrivateKey!, dto.Passphrase);
@@ -211,7 +214,7 @@ public class SshCredentialService
             }
         }
         if (dto.AuthType == SshAuthTypes.Password && string.IsNullOrEmpty(dto.Password) && (isNew || row.PasswordEnc is null))
-            return "Bitte ein Passwort hinterlegen.";
+            return _l["credentials.passwordRequired"].Value;
 
         row.Name = dto.Name.Trim();
         row.UserName = dto.UserName.Trim();

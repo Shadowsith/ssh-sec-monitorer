@@ -113,10 +113,10 @@ class LiveUpdates {
         const el = document.querySelector('[data-live-status]');
         if (!el) return;
         el.classList.remove('d-none');
-        el.title = connected ? 'Seite aktualisiert sich automatisch' : 'Live-Verbindung getrennt – wird neu aufgebaut';
+        el.title = I18n.t(connected ? 'js.live.connectedHint' : 'js.live.disconnectedHint');
         const icon = el.querySelector('i');
         icon.className = connected ? 'bi bi-broadcast text-success me-1' : 'bi bi-wifi-off text-warning me-1';
-        el.querySelector('span').textContent = connected ? 'Live' : 'Offline';
+        el.querySelector('span').textContent = I18n.t(connected ? 'js.live.connected' : 'js.live.disconnected');
     }
 }
 
