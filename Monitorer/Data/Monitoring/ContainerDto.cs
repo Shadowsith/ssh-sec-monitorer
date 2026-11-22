@@ -12,7 +12,7 @@ public class ContainerDto
     public int? RestartCount { get; set; }
     public string? StartedAt { get; set; }
     public double? CpuPercent { get; set; }
-    public MemoryDto? Memory { get; set; }
+    public ContainerMemoryDto? Memory { get; set; }
     public ContainerNetworkDto? Network { get; set; }
     public ContainerLogsDto? Logs { get; set; }
     /// <summary>Published host ports; null if the agent does not report ports (docker.ports.enabled: false).</summary>

@@ -148,7 +148,7 @@ public class SshFetchService
         SshSecretsDto secrets, List<IDisposable> disposables, CancellationToken ct)
     {
         var methods = CreateAuthenticationMethods(secrets, disposables);
-        var info = new ConnectionInfo(host, port, secrets.UserName, methods.ToArray())
+        var info = new Renci.SshNet.ConnectionInfo(host, port, secrets.UserName, methods.ToArray())
         {
             Timeout = TimeSpan.FromSeconds(_settings.SshTimeoutSeconds)
         };
