@@ -139,7 +139,8 @@ public class AgentPollService
                 MemoryPercent = ToDecimal(host?.Memory?.Percent),
                 DiskPercentMax = ToDecimal(host?.Disks?.Max(d => d.Percent)),
                 ContainersRunning = file.Docker?.Containers.Count(c => c.IsRunning),
-                ContainersTotal = file.Docker?.Containers.Count
+                ContainersTotal = file.Docker?.Containers.Count,
+                AgentVersion = file.Agent?.Version
             };
             await _snapshots.Upsert(snapshot);
         }

@@ -21,6 +21,7 @@
             </button>
             <a class="navbar-brand d-flex align-items-center gap-2 me-auto" asp-page="/Index">
                 <i class="bi bi-shield-lock-fill text-info"></i><span>SshSecMonitorer</span>
+                <small class="text-body-secondary fs-6 fw-normal">v@(typeof(Program).Assembly.GetName().Version?.ToString(3))</small>
             </a>
             <div class="d-flex align-items-center gap-2 text-light">
                 <span class="small px-2 d-none" role="status" data-live-status><i class="bi bi-broadcast me-1"></i><span>Live</span></span>

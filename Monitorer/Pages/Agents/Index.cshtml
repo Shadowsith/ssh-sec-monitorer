@@ -30,14 +30,20 @@
                             </h2>
                             <partial name="_StatusBadge" model="item.Status" />
                         </div>
-                        <div class="small text-body-secondary mb-3 text-truncate">
-                            @if (item.Agent.IsLocal())
+                        <div class="d-flex justify-content-between gap-2 small text-body-secondary mb-3">
+                            <span class="text-truncate">
+                                @if (item.Agent.IsLocal())
+                                {
+                                    <span class="badge text-bg-info me-1" title="Agent auf dem Monitorer-Host, gelesen aus dem gemounteten Ordner">lokal</span>@item.Agent.LocalDir
+                                }
+                                else
+                                {
+                                    @item.Agent.Host
+                                }
+                            </span>
+                            @if (snap?.AgentVersion is string agentVersion)
                             {
-                                <span class="badge text-bg-info me-1" title="Agent auf dem Monitorer-Host, gelesen aus dem gemounteten Ordner">lokal</span>@item.Agent.LocalDir
-                            }
-                            else
-                            {
-                                @item.Agent.Host
+                                <span class="text-nowrap" title="Agent-Version"><i class="bi bi-tag me-1"></i>@("v" + agentVersion)</span>
                             }
                         </div>
                         <partial name="_UsageBar" model='new UsageBarDto("CPU", snap?.CpuPercent, null, s.CpuWarnPercent, s.CpuCriticalPercent)' />

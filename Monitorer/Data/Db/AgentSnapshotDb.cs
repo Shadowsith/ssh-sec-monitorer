@@ -15,4 +15,5 @@ public class AgentSnapshotDb
     public decimal? DiskPercentMax { get; set; }        // disk_percent_max
     public int? ContainersRunning { get; set; }         // containers_running
     public int? ContainersTotal { get; set; }           // containers_total
+    public string? AgentVersion { get; set; }           // agent_version (agent.version from monitoring.json)
 }

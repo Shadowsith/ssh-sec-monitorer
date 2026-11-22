@@ -127,7 +127,7 @@ Configuration: `docker-compose/local-agent/config.yml` (same format as `Agent/co
 {
   "schema_version": 1,
   "generated_at": "2026-11-20T07:14:02Z",
-  "agent":  { "name": "vm-web-01", "version": "0.1.0", "intervals": { "write": 15, "host": 10, "docker": 30 } },
+  "agent":  { "name": "vm-web-01", "version": "1.0.0", "intervals": { "write": 15, "host": 10, "docker": 30 } },
   "host": {
     "current": { "hostname": "…", "uptime_seconds": 12345, "cpu_percent": 8.8, "cpu_count": 4, "load": [0.1, 0.2, 0.3],
                  "memory": { "total": 0, "used": 0, "available": 0, "percent": 4.7 }, "swap": { … },

@@ -18,7 +18,7 @@ public class AgentSnapshotRepository
         return await conn.QueryAsync<AgentSnapshotDb>(
             """
             SELECT agent_id, last_attempt_at, fetched_at, generated_at, status, message, NULL::text AS payload,
-                   cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total
+                   cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total, agent_version
             FROM agent_snapshot
             """);
     }
@@ -29,7 +29,7 @@ public class AgentSnapshotRepository
         using var conn = _factory.Create();
         return await conn.QueryAsync<AgentSnapshotDb>(
             "SELECT agent_id, last_attempt_at, fetched_at, generated_at, status, message, payload::text AS payload, " +
-            "cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total FROM agent_snapshot");
+            "cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total, agent_version FROM agent_snapshot");
     }
 
     /// <summary>SELECT — the snapshot of one agent including the payload.</summary>
@@ -38,7 +38,7 @@ public class AgentSnapshotRepository
         using var conn = _factory.Create();
         return await conn.QuerySingleOrDefaultAsync<AgentSnapshotDb>(
             "SELECT agent_id, last_attempt_at, fetched_at, generated_at, status, message, payload::text AS payload, " +
-            "cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total " +
+            "cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total, agent_version " +
             "FROM agent_snapshot WHERE agent_id = @agentId",
             new { agentId });
     }
@@ -50,9 +50,9 @@ public class AgentSnapshotRepository
         await conn.ExecuteAsync(
             """
             INSERT INTO agent_snapshot (agent_id, last_attempt_at, fetched_at, generated_at, status, message, payload,
-                                        cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total)
+                                        cpu_percent, memory_percent, disk_percent_max, containers_running, containers_total, agent_version)
             VALUES (@AgentId, @LastAttemptAt, @FetchedAt, @GeneratedAt, @Status, @Message, @Payload::jsonb,
-                    @CpuPercent, @MemoryPercent, @DiskPercentMax, @ContainersRunning, @ContainersTotal)
+                    @CpuPercent, @MemoryPercent, @DiskPercentMax, @ContainersRunning, @ContainersTotal, @AgentVersion)
             ON CONFLICT (agent_id) DO UPDATE
             SET last_attempt_at = EXCLUDED.last_attempt_at,
                 fetched_at = EXCLUDED.fetched_at,
@@ -64,7 +64,8 @@ public class AgentSnapshotRepository
                 memory_percent = EXCLUDED.memory_percent,
                 disk_percent_max = EXCLUDED.disk_percent_max,
                 containers_running = EXCLUDED.containers_running,
-                containers_total = EXCLUDED.containers_total
+                containers_total = EXCLUDED.containers_total,
+                agent_version = EXCLUDED.agent_version
             """,
             row);
     }
