@@ -93,6 +93,10 @@ public class MonitoringSettings
     public double DiskWarnPercent { get; set; } = 85;
     public double DiskCriticalPercent { get; set; } = 95;
     public int LiveCheckTickSeconds { get; set; } = 5;
+    /// <summary>Certificate checks: Warning at or below this many days left.</summary>
+    public int CertWarnDays { get; set; } = 30;
+    /// <summary>Certificate checks: Critical at or below this many days left.</summary>
+    public int CertCriticalDays { get; set; } = 7;
     /// <summary>How often the alert rules are evaluated.</summary>
     public int AlertTickSeconds { get; set; } = 30;
     /// <summary>Status for containers that were seen once and are gone now: Warning | Critical | None.</summary>

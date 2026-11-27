@@ -41,11 +41,11 @@ public class AlertRuleRepository
         using var conn = _factory.Create();
         return await conn.ExecuteScalarAsync<int>(
             """
-            INSERT INTO alert_rule (name, scenario, agent_id, live_check_id, container_pattern, threshold_minutes,
-                                    min_status, ignore_clean_exit, delay_minutes, repeat_minutes, notify_recovery,
+            INSERT INTO alert_rule (name, scenario, agent_id, live_check_id, cert_check_id, container_pattern,
+                                    threshold_minutes, threshold_days, min_status, ignore_clean_exit, delay_minutes, repeat_minutes, notify_recovery,
                                     recipients, enabled)
-            VALUES (@Name, @Scenario, @AgentId, @LiveCheckId, @ContainerPattern, @ThresholdMinutes,
-                    @MinStatus, @IgnoreCleanExit, @DelayMinutes, @RepeatMinutes, @NotifyRecovery,
+            VALUES (@Name, @Scenario, @AgentId, @LiveCheckId, @CertCheckId, @ContainerPattern,
+                    @ThresholdMinutes, @ThresholdDays, @MinStatus, @IgnoreCleanExit, @DelayMinutes, @RepeatMinutes, @NotifyRecovery,
                     @Recipients, @Enabled)
             RETURNING id
             """,
@@ -62,8 +62,10 @@ public class AlertRuleRepository
                 scenario = @Scenario,
                 agent_id = @AgentId,
                 live_check_id = @LiveCheckId,
+                cert_check_id = @CertCheckId,
                 container_pattern = @ContainerPattern,
                 threshold_minutes = @ThresholdMinutes,
+                threshold_days = @ThresholdDays,
                 min_status = @MinStatus,
                 ignore_clean_exit = @IgnoreCleanExit,
                 delay_minutes = @DelayMinutes,

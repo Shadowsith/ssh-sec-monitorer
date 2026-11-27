@@ -1,0 +1,78 @@
+@model List<CertCheckDto>
+@{
+    var warnDays = ViewData["CertWarnDays"] as int? ?? 30;
+    var criticalDays = ViewData["CertCriticalDays"] as int? ?? 7;
+}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th>@L["common.name"]</th>
+                <th>@L["certChecks.targetColumn"]</th>
+                <th>@L["common.status"]</th>
+                <th>@L["certChecks.validFrom"]</th>
+                <th>@L["certChecks.validUntil"]</th>
+                <th class="text-end">@L["certChecks.daysLeft"]</th>
+                <th>@L["certChecks.issuer"]</th>
+                <th>@L["certChecks.checked"]</th>
+                <th>@L["certChecks.message"]</th>
+                <th class="text-end">@L["common.actions"]</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var check in Model)
+            {
+                var daysClass = check.DaysLeft switch
+                {
+                    null => "light border",
+                    var d when d <= criticalDays => "danger",
+                    var d when d <= warnDays => "warning",
+                    _ => "success"
+                };
+                <tr>
+                    <td class="fw-semibold">@check.Name</td>
+                    <td class="text-nowrap" title="@(check.ServerName is null ? null : "SNI: " + check.ServerName)">
+                        @if (check.Protocol != CertCheckProtocols.Tls)
+                        {
+                            <span class="badge text-bg-light border me-1">@CertCheckProtocols.DisplayName(check.Protocol)</span>
+                        }
+                        <code>@check.Target</code>
+                    </td>
+                    <td><partial name="_StatusBadge" model='check.Enabled ? check.LastStatus : "Disabled"' /></td>
+                    <td class="text-nowrap" title="@check.NotBefore.ToBerlinString(L, "format.dateTime")">@check.NotBefore.ToBerlinString(L, "format.date")</td>
+                    <td class="text-nowrap" title="@check.NotAfter.ToBerlinString(L, "format.dateTime")">@check.NotAfter.ToBerlinString(L, "format.date")</td>
+                    <td class="text-end">
+                        @if (check.DaysLeft is null)
+                        {
+                            <span>–</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-@daysClass">@(check.DaysLeft < 0 ? L["certChecks.expired"] : check.DaysLeft.ToString())</span>
+                        }
+                    </td>
+                    <td class="small text-truncate cell-wide" title="@check.Subject">
+                        @check.Issuer
+                        @if (check.ChainValid == false)
+                        {
+                            <i class="bi bi-shield-exclamation text-warning ms-1" title="@L["certChecks.untrusted"]"></i>
+                        }
+                    </td>
+                    <td title="@check.LastCheckedAt.ToBerlinString(L, "format.dateTimeSeconds")">@check.LastCheckedAt.ToAgeString(L)</td>
+                    <td class="small text-body-secondary text-truncate cell-wide" title="@check.LastMessage">@check.LastMessage</td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" asp-page="/CertChecks/Index" asp-page-handler="Run" asp-route-id="@check.Id" class="d-inline">
+                            <button class="btn btn-sm btn-outline-primary" title="@L["certChecks.runNow"]"><i class="bi bi-play"></i></button>
+                        </form>
+                        @if (User.IsAdmin())
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" asp-page="/CertChecks/Edit" asp-route-id="@check.Id" title="@L["common.edit"]"><i class="bi bi-pencil"></i></a>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

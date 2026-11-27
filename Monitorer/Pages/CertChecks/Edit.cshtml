@@ -1,0 +1,70 @@
+@page "{id:int?}"
+@model Monitorer.Pages.CertChecks.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["certChecks.add"] : L["certChecks.edit"];
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>@L["common.back"]</a>
+</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage</div>
+}
+<form method="post" class="card shadow-sm" autocomplete="off">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.Name" class="form-label">@L["common.name"]</label>
+                <input asp-for="Input.Name" class="form-control" required maxlength="100" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.ServerName" class="form-label">@L["certChecks.serverName"]</label>
+                <input asp-for="Input.ServerName" class="form-control font-monospace" maxlength="255" />
+                <div class="form-text">@L["certChecks.serverNameHint"]</div>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.Protocol" class="form-label">@L["certChecks.protocol"]</label>
+                <select asp-for="Input.Protocol" class="form-select">
+                    @foreach (var protocol in CertCheckProtocols.All)
+                    {
+                        <option value="@protocol">@CertCheckProtocols.DisplayName(protocol)</option>
+                    }
+                </select>
+                <div class="form-text">@L["certChecks.protocolHint"]</div>
+            </div>
+            <div class="col-md-9">
+                <label asp-for="Input.Host" class="form-label">@L["certChecks.host"]</label>
+                <input asp-for="Input.Host" class="form-control font-monospace" required maxlength="1000"
+                       placeholder="example.com · nas.home.lan · 192.168.1.10 · https://service.internal:8443" />
+                <div class="form-text">@L["certChecks.hostHint"]</div>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Input.Port" class="form-label">@L["certChecks.port"]</label>
+                <input asp-for="Input.Port" type="number" min="1" max="65535" class="form-control" placeholder="@L["certChecks.portDefault"]" />
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label asp-for="Input.IntervalSeconds" class="form-label">@L["certChecks.interval"]</label>
+                <input asp-for="Input.IntervalSeconds" type="number" min="60" max="86400" class="form-control" required />
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label asp-for="Input.TimeoutSeconds" class="form-label">Timeout (s)</label>
+                <input asp-for="Input.TimeoutSeconds" type="number" min="1" max="120" class="form-control" required />
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input asp-for="Input.Enabled" class="form-check-input" role="switch" />
+                    <label asp-for="Input.Enabled" class="form-check-label">@L["common.enabled"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>@L["common.save"]</button>
+        @if (!Model.IsNew)
+        {
+            <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
+                    data-confirm="@L["certChecks.deleteConfirm"]"><i class="bi bi-trash me-1"></i>@L["common.delete"]</button>
+        }
+    </div>
+</form>

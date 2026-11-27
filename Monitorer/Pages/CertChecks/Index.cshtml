@@ -1,0 +1,23 @@
+@page
+@model Monitorer.Pages.CertChecks.IndexModel
+@{
+    ViewData["Title"] = L["nav.certChecks"];
+}
+<div data-live="certchecks">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">@L["nav.certChecks"]</h1>
+        @if (User.IsAdmin())
+        {
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>@L["certChecks.add"]</a>
+        }
+    </div>
+    <p class="text-body-secondary">@L["certChecks.intro", Model.WarnDays, Model.CriticalDays]</p>
+    @if (Model.Checks.Count == 0)
+    {
+        <div class="alert alert-info">@L["certChecks.empty"]</div>
+    }
+    else
+    {
+        <partial name="_CertCheckTable" model="Model.Checks" view-data="ViewData" />
+    }
+</div>

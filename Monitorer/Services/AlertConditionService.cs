@@ -23,13 +23,14 @@ public class AlertConditionService
     private readonly AgentRepository _agents;
     private readonly AgentSnapshotRepository _snapshots;
     private readonly LiveCheckRepository _liveChecks;
+    private readonly CertCheckRepository _certChecks;
     private readonly MonitoringEvaluationService _evaluation;
     private readonly KnownContainerService _known;
     private readonly MonitoringSettings _settings;
     private readonly IStringLocalizer _l;
 
     public AlertConditionService(AgentRepository agents, AgentSnapshotRepository snapshots, LiveCheckRepository liveChecks,
-        MonitoringEvaluationService evaluation, KnownContainerService known, IOptions<MonitoringSettings> settings,
+        CertCheckRepository certChecks, MonitoringEvaluationService evaluation, KnownContainerService known, IOptions<MonitoringSettings> settings,
         IStringLocalizer l)
     {
         _l = l;
@@ -37,18 +38,20 @@ public class AlertConditionService
         _agents = agents;
         _snapshots = snapshots;
         _liveChecks = liveChecks;
+        _certChecks = certChecks;
         _evaluation = evaluation;
         _known = known;
     }
 
-    /// <summary>Loads agents, snapshots, parsed monitoring.json files and live checks once.</summary>
+    /// <summary>Loads agents, snapshots, parsed monitoring.json files, live checks and certificate checks once.</summary>
     public async Task<AlertContextDto> LoadContext()
     {
         var context = new AlertContextDto
         {
             Agents = (await _agents.SelectEnabled()).ToList(),
             Snapshots = (await _snapshots.SelectWithPayload()).ToDictionary(s => s.AgentId),
-            LiveChecks = (await _liveChecks.SelectEnabled()).ToList()
+            LiveChecks = (await _liveChecks.SelectEnabled()).ToList(),
+            CertChecks = (await _certChecks.SelectEnabled()).ToList()
         };
         foreach (var (agentId, snapshot) in context.Snapshots)
         {
@@ -81,6 +84,7 @@ public class AlertConditionService
             AlertScenarios.LiveCheckDown => LiveChecksDown(rule, context),
             AlertScenarios.ContainerDown => agents.SelectMany(a => ContainersDown(rule, a, context)),
             AlertScenarios.ContainerMissing => agents.SelectMany(a => ContainersMissing(rule, a, context)),
+            AlertScenarios.CertExpiring => CertsExpiring(rule, context, nowUtc),
             _ => Enumerable.Empty<AlertConditionDto>()
         };
     }
@@ -93,7 +97,7 @@ public class AlertConditionService
     /// </summary>
     public HashSet<int> SuppressedAgents(AlertRuleDb rule, AlertContextDto context, DateTime nowUtc)
     {
-        if (rule.Scenario is AlertScenarios.AgentUnreachable or AlertScenarios.LiveCheckDown)
+        if (rule.Scenario == AlertScenarios.AgentUnreachable || !AlertScenarios.UsesAgent(rule.Scenario))
             return new HashSet<int>();
         var result = new HashSet<int>();
         foreach (var agent in context.Agents)
@@ -113,7 +117,7 @@ public class AlertConditionService
         return result;
     }
 
-    /// <summary>"agent:3" / "agent:3/container:web" → 3; null for live checks.</summary>
+    /// <summary>"agent:3" / "agent:3/container:web" → 3; null for live / certificate checks.</summary>
     public static int? AgentIdFromKey(string subjectKey)
     {
         if (!subjectKey.StartsWith("agent:", StringComparison.Ordinal))
@@ -162,6 +166,24 @@ public class AlertConditionService
         context.LiveChecks
             .Where(c => (rule.LiveCheckId is null || c.Id == rule.LiveCheckId) && c.LastStatus == MonitorStatus.Down)
             .Select(c => Condition($"livecheck:{c.Id}", c.Name, $"{c.Target}: {c.LastMessage}"));
+
+    /// <summary>
+    /// Uses the last known certificate: if the host is unreachable meanwhile, the alert neither resolves nor
+    /// changes - it ends when a renewed certificate is read (or the rule's threshold is lowered).
+    /// </summary>
+    private IEnumerable<AlertConditionDto> CertsExpiring(AlertRuleDb rule, AlertContextDto context, DateTime nowUtc)
+    {
+        var threshold = rule.ThresholdDays ?? 14;
+        foreach (var c in context.CertChecks.Where(c => rule.CertCheckId is null || c.Id == rule.CertCheckId))
+        {
+            if (c.DaysLeft(nowUtc) is not { } days || days > threshold)
+                continue;
+            var until = c.NotAfter.ToBerlinString(_l);
+            yield return Condition($"certcheck:{c.Id}", c.Name, c.NotAfter < nowUtc
+                ? _l["condition.certExpired", c.Target, until].Value
+                : _l["condition.certExpiring", c.Target, days, until, threshold].Value);
+        }
+    }
 
     private IEnumerable<AlertConditionDto> ContainersDown(AlertRuleDb rule, AgentDb agent, AlertContextDto context)
     {
