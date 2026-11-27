@@ -17,6 +17,7 @@ using Monitorer.Hubs;
 using Monitorer.Middleware;
 using Monitorer.Repository;
 using Monitorer.Services;
+using Monitorer.Services.Cve;
 using Serilog;
 
 // Bootstrap logger — catches errors before the configured logger is ready
@@ -40,6 +41,7 @@ try
     builder.Services.Configure<LdapSettings>(config.GetSection("Ldap"));
     builder.Services.Configure<MailSettings>(config.GetSection("Mail"));
     builder.Services.Configure<MonitoringSettings>(config.GetSection("Monitoring"));
+    builder.Services.Configure<CveSettings>(config.GetSection("Cve"));
     builder.Services.Configure<SwaggerSettings>(config.GetSection("Swagger"));
 
     var dbConfig = config.GetSection("DbConfig").Get<DbConfig>() ?? new DbConfig();
@@ -174,6 +176,14 @@ try
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         });
 
+    // ---------------------------------------------------------------- HTTP client for the CVE sources
+    builder.Services.AddMemoryCache();
+    builder.Services.AddHttpClient(CveHttpService.ClientName, c =>
+    {
+        c.Timeout = TimeSpan.FromSeconds(30);
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("SshSecMonitorer/1.0");
+    });
+
     // ---------------------------------------------------------------- application services
     builder.Services.AddSingleton<SetupState>();
     builder.Services.AddSingleton<LoginThrottleService>();
@@ -186,6 +196,8 @@ try
     builder.Services.AddScoped<AgentSnapshotRepository>();
     builder.Services.AddScoped<LiveCheckRepository>();
     builder.Services.AddScoped<CertCheckRepository>();
+    builder.Services.AddScoped<CveCheckRepository>();
+    builder.Services.AddScoped<CveFindingRepository>();
     builder.Services.AddScoped<KnownContainerRepository>();
     builder.Services.AddScoped<AlertRuleRepository>();
     builder.Services.AddScoped<AlertStateRepository>();
@@ -212,6 +224,15 @@ try
     builder.Services.AddScoped<LiveCheckRunnerService>();
     builder.Services.AddScoped<CertCheckService>();
     builder.Services.AddScoped<CertCheckRunnerService>();
+    builder.Services.AddScoped<CveHttpService>();
+    builder.Services.AddScoped<ICveProvider, BsiCveProvider>();
+    builder.Services.AddScoped<ICveProvider, TldrCveProvider>();
+    builder.Services.AddScoped<ICveProvider, OpenCveProvider>();
+    builder.Services.AddScoped<ICveProvider, OpenCveKbProvider>();
+    builder.Services.AddScoped<CveEnrichmentService>();
+    builder.Services.AddScoped<CveCheckService>();
+    builder.Services.AddScoped<CveCheckRunnerService>();
+    builder.Services.AddScoped<CveFindingService>();
     builder.Services.AddScoped<OverviewService>();
     builder.Services.AddScoped<DockerOverviewService>();
     builder.Services.AddScoped<OverviewChartService>();
@@ -222,6 +243,7 @@ try
     builder.Services.AddHostedService<AgentPollingBackgroundService>();
     builder.Services.AddHostedService<LiveCheckBackgroundService>();
     builder.Services.AddHostedService<CertCheckBackgroundService>();
+    builder.Services.AddHostedService<CveCheckBackgroundService>();
     builder.Services.AddHostedService<AlertBackgroundService>();
 
     // ---------------------------------------------------------------- pipeline

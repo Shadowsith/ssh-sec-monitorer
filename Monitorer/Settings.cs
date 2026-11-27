@@ -105,6 +105,13 @@ public class MonitoringSettings
     public string KnownContainerIgnore { get; set; } = "";
 }
 
+/// <summary>CVE checks (section "Cve").</summary>
+public class CveSettings
+{
+    /// <summary>Optional GitHub token for the opencve-kb source: 5000 instead of 60 API requests per hour.</summary>
+    public string GitHubToken { get; set; } = "";
+}
+
 /// <summary>ASP.NET Data Protection key ring (section "DataProtection"). Encrypts stored SSH keys and passwords.</summary>
 public class DataProtectionSettings
 {

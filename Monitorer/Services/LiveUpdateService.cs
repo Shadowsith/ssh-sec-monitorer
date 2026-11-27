@@ -12,6 +12,7 @@ public class LiveUpdateService
     public const string Agents = "agents";
     public const string LiveChecks = "livechecks";
     public const string CertChecks = "certchecks";
+    public const string Cves = "cves";
     public const string Alerts = "alerts";
 
     public static string Agent(int agentId) => $"agent:{agentId}";

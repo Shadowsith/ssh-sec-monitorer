@@ -17,15 +17,18 @@ public static class AlertScenarios
     public const string ContainerMissing = "ContainerMissing";
     /// <summary>TLS certificate expires within N days (or is expired).</summary>
     public const string CertExpiring = "CertExpiring";
+    /// <summary>A CVE check found a new CVE that is not acknowledged yet.</summary>
+    public const string CveFound = "CveFound";
 
     public static readonly string[] All =
-        [AgentUnreachable, AgentStale, AgentStatus, LiveCheckDown, ContainerDown, ContainerMissing, CertExpiring];
+        [AgentUnreachable, AgentStale, AgentStatus, LiveCheckDown, ContainerDown, ContainerMissing, CertExpiring, CveFound];
 
     public static bool IsValid(string value) => All.Contains(value);
 
-    public static bool UsesAgent(string scenario) => scenario is not (LiveCheckDown or CertExpiring);
+    public static bool UsesAgent(string scenario) => scenario is not (LiveCheckDown or CertExpiring or CveFound);
     public static bool UsesLiveCheck(string scenario) => scenario == LiveCheckDown;
     public static bool UsesCertCheck(string scenario) => scenario == CertExpiring;
+    public static bool UsesCveCheck(string scenario) => scenario == CveFound;
     public static bool UsesContainerPattern(string scenario) => scenario is ContainerDown or ContainerMissing;
 
     /// <summary>Translation key of the display name, e.g. "scenario.agentUnreachable".</summary>

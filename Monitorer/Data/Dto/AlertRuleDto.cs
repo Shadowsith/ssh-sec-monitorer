@@ -20,6 +20,7 @@ public class AlertRuleDto : AlertRuleDb
         AgentId = row.AgentId;
         LiveCheckId = row.LiveCheckId;
         CertCheckId = row.CertCheckId;
+        CveCheckId = row.CveCheckId;
         ContainerPattern = row.ContainerPattern;
         ThresholdMinutes = row.ThresholdMinutes;
         ThresholdDays = row.ThresholdDays;

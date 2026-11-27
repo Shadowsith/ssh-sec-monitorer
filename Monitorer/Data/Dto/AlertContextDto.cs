@@ -12,4 +12,6 @@ public class AlertContextDto
     public Dictionary<int, List<KnownContainerDb>> MissingContainers { get; set; } = new();
     public List<LiveCheckDb> LiveChecks { get; set; } = new();
     public List<CertCheckDb> CertChecks { get; set; } = new();
+    /// <summary>Open (not acknowledged) CVE findings of enabled CVE checks.</summary>
+    public List<CveFindingDto> CveFindings { get; set; } = new();
 }

@@ -16,6 +16,7 @@
             <li class="nav-item"><a class="nav-link @Active("/Docker/")" asp-page="/Docker/Index"><i class="bi bi-boxes me-2"></i>Docker</a></li>
             <li class="nav-item"><a class="nav-link @Active("/LiveChecks/")" asp-page="/LiveChecks/Index"><i class="bi bi-activity me-2"></i>@L["nav.liveChecks"]</a></li>
             <li class="nav-item"><a class="nav-link @Active("/CertChecks/")" asp-page="/CertChecks/Index"><i class="bi bi-shield-lock me-2"></i>@L["nav.certChecks"]</a></li>
+            <li class="nav-item"><a class="nav-link @Active("/CveChecks/")" asp-page="/CveChecks/Index"><i class="bi bi-bug me-2"></i>@L["nav.cveChecks"]</a></li>
         </ul>
         @if (User.IsAdmin())
         {

@@ -9,6 +9,7 @@ public class AlertRuleDb
     public int? AgentId { get; set; }                           // agent_id (null = all agents)
     public int? LiveCheckId { get; set; }                       // live_check_id (null = all live checks)
     public int? CertCheckId { get; set; }                       // cert_check_id (null = all certificate checks)
+    public int? CveCheckId { get; set; }                        // cve_check_id (null = all CVE checks)
     public string? ContainerPattern { get; set; }               // container_pattern (wildcards, null = all)
     public int? ThresholdMinutes { get; set; }                  // threshold_minutes (AgentStale)
     public int? ThresholdDays { get; set; }                     // threshold_days (CertExpiring: alert at <= N days left)

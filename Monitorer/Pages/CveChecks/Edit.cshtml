@@ -1,0 +1,66 @@
+@page "{id:int?}"
+@model Monitorer.Pages.CveChecks.EditModel
+@using Monitorer.Services
+@{
+    ViewData["Title"] = Model.IsNew ? L["cveChecks.add"] : L["cveChecks.edit"];
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <a class="btn btn-outline-secondary" asp-page="Index"><i class="bi bi-arrow-left me-1"></i>@L["common.back"]</a>
+</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage</div>
+}
+<form method="post" class="card shadow-sm" autocomplete="off">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="Input.Name" class="form-label">@L["common.name"]</label>
+                <input asp-for="Input.Name" class="form-control" required maxlength="100" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.IntervalMinutes" class="form-label">@L["cveChecks.interval"]</label>
+                <input asp-for="Input.IntervalMinutes" type="number" min="@CveCheckService.MinIntervalMinutes" max="@CveCheckService.MaxIntervalMinutes" class="form-control" required />
+                <div class="form-text">@L["cveChecks.intervalHint", CveCheckService.MinIntervalMinutes]</div>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.Keywords" class="form-label">@L["cveChecks.keywords"]</label>
+                <textarea asp-for="Input.Keywords" class="form-control font-monospace" rows="8" required
+                          placeholder="openssl&#10;nginx&#10;linux kernel&#10;log4j&#10;python"></textarea>
+                <div class="form-text">@L["cveChecks.keywordsHint"]</div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-label">@L["cveChecks.providers"]</div>
+                @foreach (var provider in CveProviders.All)
+                {
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="Input.Providers" value="@provider" id="provider-@provider"
+                               checked="@(Model.Input.Providers.Contains(provider))" />
+                        <label class="form-check-label" for="provider-@provider">
+                            @CveProviders.DisplayName(provider)
+                            <span class="d-block small text-body-secondary">@L[CveProviders.HintKey(provider)]</span>
+                        </label>
+                    </div>
+                }
+            </div>
+            <div class="col-12">
+                <div class="form-text mt-0"><i class="bi bi-info-circle me-1"></i>@L["cveChecks.baselineFormHint"]</div>
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input asp-for="Input.Enabled" class="form-check-input" role="switch" />
+                    <label asp-for="Input.Enabled" class="form-check-label">@L["common.enabled"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>@L["common.save"]</button>
+        @if (!Model.IsNew)
+        {
+            <button type="submit" class="btn btn-outline-danger ms-auto" asp-page-handler="Delete" formnovalidate
+                    data-confirm="@L["cveChecks.deleteConfirm"]"><i class="bi bi-trash me-1"></i>@L["common.delete"]</button>
+        }
+    </div>
+</form>

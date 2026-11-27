@@ -78,6 +78,8 @@ services:
       Monitoring__StaleAfterSeconds: ${STALE_AFTER_SECONDS:-300}
       Monitoring__MissingContainerStatus: ${MISSING_CONTAINER_STATUS:-Warning}
       Monitoring__KnownContainerIgnore: ${KNOWN_CONTAINER_IGNORE:-}
+      # --- optional: CVE checks ---
+      Cve__GitHubToken: ${CVE_GITHUB_TOKEN:-}
       Monitoring__LocalAgentRoot: /app/agents
     volumes:
       - dpkeys:/app/keys   # Data Protection keys - losing them makes stored SSH secrets unreadable

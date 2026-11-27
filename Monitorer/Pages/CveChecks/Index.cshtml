@@ -1,0 +1,179 @@
+@page
+@model Monitorer.Pages.CveChecks.IndexModel
+@{
+    ViewData["Title"] = L["nav.cveChecks"];
+    var openCount = Model.Findings.Count(f => f.IsOpen);
+}
+<div data-live="cves">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">@L["nav.cveChecks"]</h1>
+        @if (User.IsAdmin())
+        {
+            <a class="btn btn-primary" asp-page="Edit"><i class="bi bi-plus-lg me-1"></i>@L["cveChecks.add"]</a>
+        }
+    </div>
+    <p class="text-body-secondary">@L["cveChecks.intro"]</p>
+
+    @if (Model.Checks.Count == 0)
+    {
+        <div class="alert alert-info">@L["cveChecks.empty"]</div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>@L["common.name"]</th>
+                        <th>@L["cveChecks.keywords"]</th>
+                        <th>@L["cveChecks.providers"]</th>
+                        <th class="text-end">@L["cveChecks.intervalColumn"]</th>
+                        <th>@L["common.status"]</th>
+                        <th class="text-end">@L["cveChecks.open"]</th>
+                        <th>@L["cveChecks.checked"]</th>
+                        <th>@L["cveChecks.message"]</th>
+                        <th class="text-end">@L["common.actions"]</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var check in Model.Checks)
+                    {
+                        var keywords = check.KeywordList();
+                        <tr>
+                            <td class="fw-semibold">@check.Name</td>
+                            <td title="@string.Join(", ", keywords)">
+                                @foreach (var keyword in keywords.Take(5))
+                                {
+                                    <span class="badge text-bg-light border me-1">@keyword</span>
+                                }
+                                @if (keywords.Count > 5)
+                                {
+                                    <span class="small text-body-secondary">+@(keywords.Count - 5)</span>
+                                }
+                            </td>
+                            <td class="small">@string.Join(", ", check.Providers.Select(CveProviders.DisplayName))</td>
+                            <td class="text-end text-nowrap">@check.IntervalMinutes min</td>
+                            <td>
+                                <partial name="_StatusBadge" model='check.Enabled ? check.LastStatus : "Disabled"' />
+                                @if (check.BaselinePending && check.Enabled)
+                                {
+                                    <span class="badge text-bg-light border ms-1" title="@L["cveChecks.baselinePendingHint"]">@L["cveChecks.baselinePending"]</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (check.OpenCount > 0)
+                                {
+                                    <span class="badge text-bg-warning">@check.OpenCount</span>
+                                }
+                                else
+                                {
+                                    <span class="text-body-secondary">0</span>
+                                }
+                            </td>
+                            <td title="@check.LastCheckedAt.ToBerlinString(L, "format.dateTimeSeconds")">@check.LastCheckedAt.ToAgeString(L)</td>
+                            <td class="small text-body-secondary text-truncate cell-wide" title="@check.LastMessage">@check.LastMessage</td>
+                            <td class="text-end text-nowrap">
+                                <form method="post" asp-page-handler="Run" asp-route-id="@check.Id" asp-route-baseline="@(Model.ShowBaseline ? "true" : null)" class="d-inline">
+                                    <button class="btn btn-sm btn-outline-primary" title="@L["cveChecks.runNow"]"><i class="bi bi-play"></i></button>
+                                </form>
+                                @if (User.IsAdmin())
+                                {
+                                    <a class="btn btn-sm btn-outline-secondary" asp-page="Edit" asp-route-id="@check.Id" title="@L["common.edit"]"><i class="bi bi-pencil"></i></a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h2 class="h5 mb-0">@L["cveChecks.findings"] <span class="badge text-bg-@(openCount > 0 ? "warning" : "light border") ms-1">@L["cveChecks.openCount", openCount]</span></h2>
+            @if (Model.ShowBaseline)
+            {
+                <a class="btn btn-sm btn-outline-secondary" asp-page="Index"><i class="bi bi-eye-slash me-1"></i>@L["cveChecks.hideBaseline"]</a>
+            }
+            else
+            {
+                <a class="btn btn-sm btn-outline-secondary" asp-page="Index" asp-route-baseline="true"><i class="bi bi-eye me-1"></i>@L["cveChecks.showBaseline"]</a>
+            }
+        </div>
+        @if (Model.Findings.Count == 0)
+        {
+            <div class="alert alert-light border">@L["cveChecks.noFindings"]</div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>CVE</th>
+                            <th>@L["cveChecks.title"]</th>
+                            <th>@L["cveChecks.severity"]</th>
+                            <th>@L["cveChecks.providers"]</th>
+                            <th>@L["cveChecks.checkKeyword"]</th>
+                            <th>@L["cveChecks.published"]</th>
+                            <th>@L["cveChecks.firstSeen"]</th>
+                            <th>@L["common.status"]</th>
+                            <th class="text-end">@L["common.actions"]</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var f in Model.Findings)
+                        {
+                            <tr class="@(f.IsOpen ? "" : "text-body-secondary")">
+                                <td class="text-nowrap"><a href="@f.Link" target="_blank" rel="noopener noreferrer" class="font-monospace">@f.CveId</a></td>
+                                <td class="text-truncate cell-wide" title="@(f.Description ?? f.Title)">@(f.Title ?? "–")</td>
+                                <td class="text-nowrap">
+                                    @if (f.Severity is not null)
+                                    {
+                                        <span class="badge text-bg-@CveSeverity.CssClass(f.Severity)">@L["cveChecks.severity." + f.Severity.ToLowerInvariant()]</span>
+                                    }
+                                    @if (f.Cvss is not null)
+                                    {
+                                        <span class="small ms-1">@f.Cvss.Value.ToString("0.0")</span>
+                                    }
+                                    @if (f.Severity is null && f.Cvss is null)
+                                    {
+                                        <span>–</span>
+                                    }
+                                </td>
+                                <td class="small">@string.Join(", ", CveProviders.Parse(f.Providers).Select(CveProviders.DisplayName))</td>
+                                <td class="small">@f.CheckName<div class="text-body-secondary">@f.Keyword</div></td>
+                                <td class="text-nowrap">@f.PublishedAt.ToBerlinString(L, "format.date")</td>
+                                <td class="text-nowrap" title="@f.FirstSeenAt.ToBerlinString(L, "format.dateTimeSeconds")">@f.FirstSeenAt.ToBerlinString(L)</td>
+                                <td class="text-nowrap">
+                                    @if (f.IsOpen)
+                                    {
+                                        <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>@L["cveChecks.statusOpen"]</span>
+                                    }
+                                    else if (f.IsBaseline)
+                                    {
+                                        <span class="badge text-bg-light border" title="@L["cveChecks.baselineHint"]">@L["cveChecks.baseline"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-success" title="@f.AcknowledgedAt.ToBerlinString(L)"><i class="bi bi-check2 me-1"></i>@L["cveChecks.acknowledgedBy", f.AcknowledgedBy ?? "?"]</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (f.IsOpen)
+                                    {
+                                        <form method="post" asp-page-handler="Acknowledge" asp-route-cveId="@f.CveId" asp-route-baseline="@(Model.ShowBaseline ? "true" : null)" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-success" title="@L["cveChecks.acknowledgeHint"]"><i class="bi bi-check2 me-1"></i>@L["cveChecks.acknowledge"]</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>

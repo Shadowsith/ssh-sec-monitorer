@@ -24,13 +24,14 @@ public class AlertConditionService
     private readonly AgentSnapshotRepository _snapshots;
     private readonly LiveCheckRepository _liveChecks;
     private readonly CertCheckRepository _certChecks;
+    private readonly CveFindingRepository _cveFindings;
     private readonly MonitoringEvaluationService _evaluation;
     private readonly KnownContainerService _known;
     private readonly MonitoringSettings _settings;
     private readonly IStringLocalizer _l;
 
     public AlertConditionService(AgentRepository agents, AgentSnapshotRepository snapshots, LiveCheckRepository liveChecks,
-        CertCheckRepository certChecks, MonitoringEvaluationService evaluation, KnownContainerService known, IOptions<MonitoringSettings> settings,
+        CertCheckRepository certChecks, CveFindingRepository cveFindings, MonitoringEvaluationService evaluation, KnownContainerService known, IOptions<MonitoringSettings> settings,
         IStringLocalizer l)
     {
         _l = l;
@@ -39,6 +40,7 @@ public class AlertConditionService
         _snapshots = snapshots;
         _liveChecks = liveChecks;
         _certChecks = certChecks;
+        _cveFindings = cveFindings;
         _evaluation = evaluation;
         _known = known;
     }
@@ -51,7 +53,8 @@ public class AlertConditionService
             Agents = (await _agents.SelectEnabled()).ToList(),
             Snapshots = (await _snapshots.SelectWithPayload()).ToDictionary(s => s.AgentId),
             LiveChecks = (await _liveChecks.SelectEnabled()).ToList(),
-            CertChecks = (await _certChecks.SelectEnabled()).ToList()
+            CertChecks = (await _certChecks.SelectEnabled()).ToList(),
+            CveFindings = (await _cveFindings.SelectOpen()).ToList()
         };
         foreach (var (agentId, snapshot) in context.Snapshots)
         {
@@ -85,6 +88,7 @@ public class AlertConditionService
             AlertScenarios.ContainerDown => agents.SelectMany(a => ContainersDown(rule, a, context)),
             AlertScenarios.ContainerMissing => agents.SelectMany(a => ContainersMissing(rule, a, context)),
             AlertScenarios.CertExpiring => CertsExpiring(rule, context, nowUtc),
+            AlertScenarios.CveFound => CvesFound(rule, context),
             _ => Enumerable.Empty<AlertConditionDto>()
         };
     }
@@ -184,6 +188,27 @@ public class AlertConditionService
                 : _l["condition.certExpiring", c.Target, days, until, threshold].Value);
         }
     }
+
+    /// <summary>
+    /// One condition per CVE ID - not per check - so a CVE found by several checks / sources is one alert and one mail.
+    /// It lasts until the CVE is acknowledged.
+    /// </summary>
+    private IEnumerable<AlertConditionDto> CvesFound(AlertRuleDb rule, AlertContextDto context) =>
+        context.CveFindings
+            .Where(f => rule.CveCheckId is null || f.CheckId == rule.CveCheckId)
+            .GroupBy(f => f.CveId)
+            .Select(g =>
+            {
+                var first = g.OrderByDescending(f => f.EnrichedAt.HasValue).First();
+                var severity = first.Cvss is null
+                    ? first.Severity ?? "–"
+                    : $"{first.Severity} (CVSS {first.Cvss.Value.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)})";
+                var providers = string.Join(", ", g.SelectMany(f => CveProviders.Parse(f.Providers)).Distinct()
+                    .Select(CveProviders.DisplayName));
+                var checks = string.Join(", ", g.Select(f => f.CheckName).Distinct());
+                return Condition($"cve:{g.Key}", $"{g.Key} · {checks}",
+                    _l["condition.cveFound", first.Title ?? "–", severity, providers, string.Join(", ", g.Select(f => f.Keyword).Distinct()), first.Link].Value);
+            });
 
     private IEnumerable<AlertConditionDto> ContainersDown(AlertRuleDb rule, AgentDb agent, AlertContextDto context)
     {

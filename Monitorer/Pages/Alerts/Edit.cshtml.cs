@@ -17,16 +17,18 @@ public class EditModel : PageModel
     private readonly AgentService _agents;
     private readonly LiveCheckService _liveChecks;
     private readonly CertCheckService _certChecks;
+    private readonly CveCheckService _cveChecks;
     private readonly IStringLocalizer _l;
 
     public EditModel(AlertRuleService rules, AgentService agents, LiveCheckService liveChecks,
-        CertCheckService certChecks, IStringLocalizer l)
+        CertCheckService certChecks, CveCheckService cveChecks, IStringLocalizer l)
     {
         _l = l;
         _rules = rules;
         _agents = agents;
         _liveChecks = liveChecks;
         _certChecks = certChecks;
+        _cveChecks = cveChecks;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -40,6 +42,8 @@ public class EditModel : PageModel
     public List<SelectListItem> LiveChecks { get; private set; } = [];
 
     public List<SelectListItem> CertChecks { get; private set; } = [];
+
+    public List<SelectListItem> CveChecks { get; private set; } = [];
 
     public string? ErrorMessage { get; private set; }
 
@@ -95,6 +99,9 @@ public class EditModel : PageModel
         CertChecks = ((await _certChecks.GetAll()).Value ?? [])
             .OrderBy(c => c.Name)
             .Select(c => new SelectListItem($"{c.Name} ({c.Target})", c.Id.ToString()))
+            .ToList();
+        CveChecks = ((await _cveChecks.GetAll()).Value ?? [])
+            .Select(c => new SelectListItem(c.Name, c.Id.ToString()))
             .ToList();
     }
 }

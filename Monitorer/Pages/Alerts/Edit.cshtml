@@ -60,6 +60,12 @@
                 <input asp-for="Input.ThresholdDays" type="number" min="1" max="365" class="form-control" />
                 <div class="form-text">@L["alerts.thresholdDaysHint"]</div>
             </div>
+            <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.CveFound">
+                <label asp-for="Input.CveCheckId" class="form-label">@L["alerts.cveCheck"]</label>
+                <select asp-for="Input.CveCheckId" asp-items="Model.CveChecks" class="form-select">
+                    <option value="">@L["alerts.allCveChecksOption"]</option>
+                </select>
+            </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@containerScenarios">
                 <label asp-for="Input.ContainerPattern" class="form-label">@L["alerts.containerPattern"]</label>
                 <input asp-for="Input.ContainerPattern" class="form-control font-monospace" placeholder="@L["alerts.containerPatternPlaceholder"]" />

@@ -17,10 +17,12 @@ public class AlertRuleService
     private readonly AgentRepository _agents;
     private readonly LiveCheckRepository _liveChecks;
     private readonly CertCheckRepository _certChecks;
+    private readonly CveCheckRepository _cveChecks;
     private readonly IStringLocalizer _l;
 
     public AlertRuleService(AlertRuleRepository repo, AlertStateRepository states, AgentRepository agents,
-        LiveCheckRepository liveChecks, CertCheckRepository certChecks, IStringLocalizer l)
+        LiveCheckRepository liveChecks, CertCheckRepository certChecks,
+        CveCheckRepository cveChecks, IStringLocalizer l)
     {
         _l = l;
         _repo = repo;
@@ -28,6 +30,7 @@ public class AlertRuleService
         _agents = agents;
         _liveChecks = liveChecks;
         _certChecks = certChecks;
+        _cveChecks = cveChecks;
     }
 
     public async Task<ServiceResult<List<AlertRuleDto>>> GetAll()
@@ -35,13 +38,14 @@ public class AlertRuleService
         var agents = (await _agents.Select()).ToDictionary(a => a.Id, a => a.Name);
         var checks = (await _liveChecks.Select()).ToDictionary(c => c.Id, c => c.Name);
         var certs = (await _certChecks.Select()).ToDictionary(c => c.Id, c => c.Name);
+        var cves = (await _cveChecks.Select()).ToDictionary(c => c.Id, c => c.Name);
         var active = (await _states.Select()).GroupBy(s => s.RuleId)
             .ToDictionary(g => g.Key, g => g.Count());
         var rules = (await _repo.Select())
             .Select(r => new AlertRuleDto(r)
             {
                 ScenarioName = _l[AlertScenarios.NameKey(r.Scenario)].Value,
-                ScopeText = ScopeText(r, agents, checks, certs),
+                ScopeText = ScopeText(r, agents, checks, certs, cves),
                 ActiveCount = active.GetValueOrDefault(r.Id)
             })
             .ToList();
@@ -92,7 +96,7 @@ public class AlertRuleService
         var row = await _repo.SelectById(id);
         if (row is null)
             return ServiceResult<AlertRuleDto>.NotFound(_l["alerts.ruleNotFound", id].Value);
-        var scopeBefore = (row.Scenario, row.AgentId, row.LiveCheckId, row.CertCheckId, row.ContainerPattern);
+        var scopeBefore = (row.Scenario, row.AgentId, row.LiveCheckId, row.CertCheckId, row.CveCheckId, row.ContainerPattern);
         var error = await Apply(dto, row);
         if (error is not null)
             return ServiceResult<AlertRuleDto>.InvalidValue(error);
@@ -102,7 +106,7 @@ public class AlertRuleService
 
         await _repo.Update(row);
         // a changed scenario / scope starts fresh - old alerts would no longer match
-        if (scopeBefore != (row.Scenario, row.AgentId, row.LiveCheckId, row.CertCheckId, row.ContainerPattern))
+        if (scopeBefore != (row.Scenario, row.AgentId, row.LiveCheckId, row.CertCheckId, row.CveCheckId, row.ContainerPattern))
             await _states.DeleteByRuleId(id);
         return ServiceResult<AlertRuleDto>.Changed(ToDto(row));
     }
@@ -151,18 +155,22 @@ public class AlertRuleService
         var usesAgent = AlertScenarios.UsesAgent(dto.Scenario);
         var usesCheck = AlertScenarios.UsesLiveCheck(dto.Scenario);
         var usesCert = AlertScenarios.UsesCertCheck(dto.Scenario);
+        var usesCve = AlertScenarios.UsesCveCheck(dto.Scenario);
         if (usesAgent && dto.AgentId is not null && await _agents.SelectById(dto.AgentId.Value) is null)
             return _l["alerts.agentMissing"].Value;
         if (usesCheck && dto.LiveCheckId is not null && await _liveChecks.SelectById(dto.LiveCheckId.Value) is null)
             return _l["alerts.liveCheckMissing"].Value;
         if (usesCert && dto.CertCheckId is not null && await _certChecks.SelectById(dto.CertCheckId.Value) is null)
             return _l["alerts.certCheckMissing"].Value;
+        if (usesCve && dto.CveCheckId is not null && await _cveChecks.SelectById(dto.CveCheckId.Value) is null)
+            return _l["alerts.cveCheckMissing"].Value;
 
         row.Name = dto.Name.Trim();
         row.Scenario = dto.Scenario;
         row.AgentId = usesAgent ? dto.AgentId : null;
         row.LiveCheckId = usesCheck ? dto.LiveCheckId : null;
         row.CertCheckId = usesCert ? dto.CertCheckId : null;
+        row.CveCheckId = usesCve ? dto.CveCheckId : null;
         row.ContainerPattern = AlertScenarios.UsesContainerPattern(dto.Scenario) && !string.IsNullOrWhiteSpace(dto.ContainerPattern)
             ? dto.ContainerPattern.Trim() : null;
         row.ThresholdMinutes = dto.Scenario == AlertScenarios.AgentStale ? dto.ThresholdMinutes : null;
@@ -180,8 +188,10 @@ public class AlertRuleService
     private AlertRuleDto ToDto(AlertRuleDb row) => new(row) { ScenarioName = _l[AlertScenarios.NameKey(row.Scenario)].Value };
 
     private string ScopeText(AlertRuleDb r, Dictionary<int, string> agents, Dictionary<int, string> checks,
-        Dictionary<int, string> certs)
+        Dictionary<int, string> certs, Dictionary<int, string> cves)
     {
+        if (AlertScenarios.UsesCveCheck(r.Scenario))
+            return r.CveCheckId is null ? _l["alerts.allCveChecks"].Value : cves.GetValueOrDefault(r.CveCheckId.Value, "?");
         if (AlertScenarios.UsesCertCheck(r.Scenario))
             return (r.CertCheckId is null ? _l["alerts.allCertChecks"].Value : certs.GetValueOrDefault(r.CertCheckId.Value, "?"))
                    + " · " + _l["alerts.scopeDays", r.ThresholdDays ?? 0].Value;
