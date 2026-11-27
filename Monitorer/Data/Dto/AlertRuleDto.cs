@@ -19,8 +19,10 @@ public class AlertRuleDto : AlertRuleDb
         Scenario = row.Scenario;
         AgentId = row.AgentId;
         LiveCheckId = row.LiveCheckId;
+        CertCheckId = row.CertCheckId;
         ContainerPattern = row.ContainerPattern;
         ThresholdMinutes = row.ThresholdMinutes;
+        ThresholdDays = row.ThresholdDays;
         MinStatus = row.MinStatus;
         IgnoreCleanExit = row.IgnoreCleanExit;
         DelayMinutes = row.DelayMinutes;

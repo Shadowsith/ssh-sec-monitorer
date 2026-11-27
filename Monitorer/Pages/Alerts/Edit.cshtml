@@ -49,6 +49,17 @@
                     <option value="">@L["alerts.allLiveChecksOption"]</option>
                 </select>
             </div>
+            <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.CertExpiring">
+                <label asp-for="Input.CertCheckId" class="form-label">@L["alerts.certCheck"]</label>
+                <select asp-for="Input.CertCheckId" asp-items="Model.CertChecks" class="form-select">
+                    <option value="">@L["alerts.allCertChecksOption"]</option>
+                </select>
+            </div>
+            <div class="col-md-6" data-show-for="scenario" data-show-value="@AlertScenarios.CertExpiring">
+                <label asp-for="Input.ThresholdDays" class="form-label">@L["alerts.thresholdDays"]</label>
+                <input asp-for="Input.ThresholdDays" type="number" min="1" max="365" class="form-control" />
+                <div class="form-text">@L["alerts.thresholdDaysHint"]</div>
+            </div>
             <div class="col-md-6" data-show-for="scenario" data-show-value="@containerScenarios">
                 <label asp-for="Input.ContainerPattern" class="form-label">@L["alerts.containerPattern"]</label>
                 <input asp-for="Input.ContainerPattern" class="form-control font-monospace" placeholder="@L["alerts.containerPatternPlaceholder"]" />

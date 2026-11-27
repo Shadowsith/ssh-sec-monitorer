@@ -185,6 +185,7 @@ try
     builder.Services.AddScoped<AgentRepository>();
     builder.Services.AddScoped<AgentSnapshotRepository>();
     builder.Services.AddScoped<LiveCheckRepository>();
+    builder.Services.AddScoped<CertCheckRepository>();
     builder.Services.AddScoped<KnownContainerRepository>();
     builder.Services.AddScoped<AlertRuleRepository>();
     builder.Services.AddScoped<AlertStateRepository>();
@@ -209,6 +210,8 @@ try
     builder.Services.AddScoped<AgentPollService>();
     builder.Services.AddScoped<LiveCheckService>();
     builder.Services.AddScoped<LiveCheckRunnerService>();
+    builder.Services.AddScoped<CertCheckService>();
+    builder.Services.AddScoped<CertCheckRunnerService>();
     builder.Services.AddScoped<OverviewService>();
     builder.Services.AddScoped<DockerOverviewService>();
     builder.Services.AddScoped<OverviewChartService>();
@@ -218,6 +221,7 @@ try
 
     builder.Services.AddHostedService<AgentPollingBackgroundService>();
     builder.Services.AddHostedService<LiveCheckBackgroundService>();
+    builder.Services.AddHostedService<CertCheckBackgroundService>();
     builder.Services.AddHostedService<AlertBackgroundService>();
 
     // ---------------------------------------------------------------- pipeline

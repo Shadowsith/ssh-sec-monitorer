@@ -46,6 +46,8 @@ public class PollScheduler
 
     public static string LiveCheckKey(int checkId) => $"livecheck:{checkId}";
 
+    public static string CertCheckKey(int checkId) => $"certcheck:{checkId}";
+
     /// <summary>FNV-1a - unlike string.GetHashCode() it is the same in every process, so the spread survives restarts.</summary>
     private static long StableHash(string key)
     {

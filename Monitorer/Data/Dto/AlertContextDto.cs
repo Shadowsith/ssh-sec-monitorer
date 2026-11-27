@@ -11,4 +11,5 @@ public class AlertContextDto
     public Dictionary<int, MonitoringFileDto> Monitoring { get; set; } = new();
     public Dictionary<int, List<KnownContainerDb>> MissingContainers { get; set; } = new();
     public List<LiveCheckDb> LiveChecks { get; set; } = new();
+    public List<CertCheckDb> CertChecks { get; set; } = new();
 }

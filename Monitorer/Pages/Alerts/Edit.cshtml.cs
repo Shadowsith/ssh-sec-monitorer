@@ -16,14 +16,17 @@ public class EditModel : PageModel
     private readonly AlertRuleService _rules;
     private readonly AgentService _agents;
     private readonly LiveCheckService _liveChecks;
+    private readonly CertCheckService _certChecks;
     private readonly IStringLocalizer _l;
 
-    public EditModel(AlertRuleService rules, AgentService agents, LiveCheckService liveChecks, IStringLocalizer l)
+    public EditModel(AlertRuleService rules, AgentService agents, LiveCheckService liveChecks,
+        CertCheckService certChecks, IStringLocalizer l)
     {
         _l = l;
         _rules = rules;
         _agents = agents;
         _liveChecks = liveChecks;
+        _certChecks = certChecks;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -36,6 +39,8 @@ public class EditModel : PageModel
 
     public List<SelectListItem> LiveChecks { get; private set; } = [];
 
+    public List<SelectListItem> CertChecks { get; private set; } = [];
+
     public string? ErrorMessage { get; private set; }
 
     public bool IsNew => Id is null or 0;
@@ -45,7 +50,7 @@ public class EditModel : PageModel
         await LoadLists();
         if (IsNew)
         {
-            Input = new AlertRuleDto { DelayMinutes = 5, RepeatMinutes = 60, ThresholdMinutes = 10, MinStatus = MonitorStatus.Critical };
+            Input = new AlertRuleDto { DelayMinutes = 5, RepeatMinutes = 60, ThresholdMinutes = 10, ThresholdDays = 14, MinStatus = MonitorStatus.Critical };
             return Page();
         }
         var result = await _rules.Get(Id!.Value);
@@ -53,6 +58,7 @@ public class EditModel : PageModel
             return NotFound();
         Input = result.Value!;
         Input.ThresholdMinutes ??= 10;
+        Input.ThresholdDays ??= 14;
         Input.MinStatus ??= MonitorStatus.Critical;
         return Page();
     }
@@ -85,6 +91,10 @@ public class EditModel : PageModel
             .ToList();
         LiveChecks = ((await _liveChecks.GetAll()).Value ?? [])
             .Select(c => new SelectListItem($"{c.Name} ({c.CheckType})", c.Id.ToString()))
+            .ToList();
+        CertChecks = ((await _certChecks.GetAll()).Value ?? [])
+            .OrderBy(c => c.Name)
+            .Select(c => new SelectListItem($"{c.Name} ({c.Target})", c.Id.ToString()))
             .ToList();
     }
 }
